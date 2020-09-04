@@ -1,4 +1,4 @@
-#Luigi's Mansion Blender Toolkit
+# Luigi's Mansion Blender Toolkit
 
 This project aims to make a majority of Luigi's Mansion model formats importable and exportable from blender and give more granular control
 over models output.
