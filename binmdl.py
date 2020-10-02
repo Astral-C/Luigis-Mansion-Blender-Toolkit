@@ -231,6 +231,17 @@ class bin_model_import():
         
         return (face_data, texcoords)
     
+    def readAttrib(self, stream, nbt, attrib):
+        if(nbt and attrib == GXAttribute.Normal):
+            r = stream.readUInt16()
+            stream.readUInt16()
+            stream.readUInt16()
+            return r
+
+        else:
+            return stream.readUInt16()
+
+
     def readPrimitives(self, stream, attributes, size, total_verts, nbt):
         local_texcoords = [] 
         face_data = [] # vertex indicies to use in this primitive
@@ -240,26 +251,11 @@ class bin_model_import():
         current_primitive = stream.readUInt8()
         # read the primitives
         while(GXPrimitiveTypes.valid_opcode(current_primitive) and stream.fhandle.tell() < size):
-            #This could be much cleaner
-            if(nbt):
-                primitive = [[], current_primitive]
-                for x in range(stream.readUInt16()):
-                    for y in range(len(attributes)):
-                        if(attributes[y] == GXAttribute.Normal):
-                            primitive[0].append(stream.readInt16())
-                            primitive[0].append(stream.readInt16())
-                            primitive[0].append(stream.readInt16())
-                        else:
-                            primitive[0].append(stream.readInt16())
-
-                current_primitive = stream.readUInt8()
-            
-            else:
-                gxprimitives.append((
-                    [[stream.readUInt16() for y in range(len(attributes))] for x in range(stream.readUInt16())],
-                    current_primitive    
-                ))
-                current_primitive = stream.readUInt8()
+            gxprimitives.append((
+                [[self.readAttrib(stream, nbt, attributes[y]) for y in range(len(attributes))] for x in range(stream.readUInt16())],
+                current_primitive    
+            ))
+            current_primitive = stream.readUInt8()
         
         # create verts list
         for primitive in gxprimitives:
