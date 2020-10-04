@@ -26,6 +26,9 @@ class GraphNodeSettingsPanel(bpy.types.Panel):
         row = self.layout.row()
         row.prop(bpy.context.active_object, "bin_render_flags")
 
+        self.layout.operator_context = 'INVOKE_DEFAULT' #'INVOKE_AREA'
+        self.layout.operator("import_model.mansionanm", text="Import ANM")
+
 class BinMaterialsSettingsPanel(bpy.types.Panel):
     bl_label = "Bin Material Settings"
     bl_idname = "MATERIAL_PT_BIN_SETTINGS"
