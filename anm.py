@@ -7,7 +7,7 @@ import math
 def load_anim(pth):
     stream = bStream(path=pth)
 
-    root = bpy.context.selected_objects[0].children[0]
+    root = bpy.context.selected_objects[0]
 
 
     #version

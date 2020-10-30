@@ -64,13 +64,17 @@ class Shader():
         tex = None
 
         print(f"Setting up Material {material.name}, uses nodes {material.use_nodes}, input type {material.node_tree.nodes[0].inputs[0].links[0].from_node.type}")
-        if(material.use_nodes and not (material.node_tree.nodes[0].inputs[0].links[0].from_node.type == "BSDF_PRINCIPLED")):
-            tex = material.node_tree.nodes[0].inputs[0].links[0].from_node.image
+        if(material.use_nodes):
+            tex = material.node_tree.nodes.get("Principled BSDF").inputs[0].links[0].from_node.image
         
         self.bump_index = -1
         self.diffuse_index = -1
-        self.tint =  (int(material.bin_shader_tint[0]*255) << 24 | int(material.bin_shader_tint[1]*255) << 16 | int(material.bin_shader_tint[2]*255) << 8 | 0xFF)
-        
+        #force for the moment
+        self.tint = (int(material.bin_shader_tint[0]*255) << 24 | int(material.bin_shader_tint[1]*255) << 16 | int(material.bin_shader_tint[2]*255) << 8 | int(material.bin_shader_tint[2]*255))
+        self.unk1 = material.bin_shader_unk1
+        self.unk2 = material.bin_shader_unk2
+        self.unk3 = material.bin_shader_unk3
+
         #TODO: bumpmaps?
         #if(material.bump_texname):
         #    self.bump_index = textures.material_indices[material.bump_texname]
@@ -82,9 +86,9 @@ class Shader():
         print("Bump Map {0}, Diffuse Map {1}, Tint {2}".format(self.bump_index, self.diffuse_index, hex(self.tint)))
 
     def write(self, stream):
-        stream.writeUInt8(1)
-        stream.writeUInt8(1)
-        stream.writeUInt8(1)
+        stream.writeUInt8(self.unk1)
+        stream.writeUInt8(self.unk2)
+        stream.writeUInt8(self.unk3)
         stream.writeUInt32(self.tint)
         stream.pad(1)
         stream.writeInt16(self.diffuse_index)
@@ -95,8 +99,9 @@ class Shader():
             stream.writeInt16(-1)
 
         stream.writeInt16(0)
-        for x in range(7):
-            stream.writeInt16(-1)
+        stream.writeInt16(-1)
+        for x in range(6):
+            stream.writeInt16(0)
 
 class ShaderManager():
     def __init__(self, material_indices, used_materials):
@@ -119,11 +124,12 @@ class TextureManager():
         texindex = 0
 
         for material in materials_used:
-            if(material.use_nodes and not (material.node_tree.nodes[0].inputs[0].links[0].from_node.type == "BSDF_PRINCIPLED")):
-                #print(f"Converting Material wth From Node {material.node_tree.nodes[0].inputs[0].links[0].from_node.type}")
-                tex = material.node_tree.nodes[0].inputs[0].links[0].from_node.image
+            if(material.use_nodes):
+                tex = material.node_tree.nodes.get("Principled BSDF").inputs[0].links[0].from_node.image
+
                 if(tex == None):
                     continue # What the fuck?
+                
                 self.textures.append(cmpr_from_blender(tex))
                 self.material_indices[tex.name] = texindex
                 self.materials.append(Material(texindex, material))

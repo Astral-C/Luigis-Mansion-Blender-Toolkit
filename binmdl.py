@@ -24,10 +24,17 @@ class GraphNodeSettingsPanel(bpy.types.Panel):
 
     def draw(self, context):
         row = self.layout.row()
-        row.prop(bpy.context.active_object, "bin_render_flags")
+        if(bpy.context.active_object.type == 'EMPTY'):
+            row.prop(bpy.context.active_object, "bin_render_flags")
 
-        self.layout.operator_context = 'INVOKE_DEFAULT' #'INVOKE_AREA'
-        self.layout.operator("import_model.mansionanm", text="Import ANM")
+            self.layout.operator_context = 'INVOKE_DEFAULT' #'INVOKE_AREA'
+            self.layout.operator("import_anim.mansionanm", text="Import ANM")
+            self.layout.operator("export_model.mansionbin", text="Export Bin")
+        if(bpy.context.active_object.type == 'MESH'):
+            self.layout.row().prop(bpy.context.active_object, "batch_use_normals")
+            self.layout.row().prop(bpy.context.active_object, "batch_use_positions")
+
+
 
 class BinMaterialsSettingsPanel(bpy.types.Panel):
     bl_label = "Bin Material Settings"
@@ -37,10 +44,12 @@ class BinMaterialsSettingsPanel(bpy.types.Panel):
     bl_context = 'material'
 
     def draw(self, context):
-        row = self.layout.row()
-        row.prop(bpy.context.material, "bin_wrap_mode_u")
-        row.prop(bpy.context.material, "bin_wrap_mode_v")
-        row.prop(bpy.context.material, "bin_shader_tint")
+        self.layout.row().prop(bpy.context.material, "bin_wrap_mode_u")
+        self.layout.row().prop(bpy.context.material, "bin_wrap_mode_v")
+        self.layout.row().prop(bpy.context.material, "bin_shader_tint")
+        self.layout.row().prop(bpy.context.material, "bin_shader_unk1")
+        self.layout.row().prop(bpy.context.material, "bin_shader_unk2")
+        self.layout.row().prop(bpy.context.material, "bin_shader_unk3")
 
 bin_mat_wrap_modes = [
     ("CLAMP", "Clamp", "", 0),
@@ -48,11 +57,17 @@ bin_mat_wrap_modes = [
     ("MIRROR", "Mirror", "", 2),
 ]
 
-bpy.utils.register_class(GraphNodeSettingsPanel)
+bpy.utils.register_class(GraphNodeSettingsPanel) #must be registered here
+bpy.types.Object.batch_use_normals = bpy.props.BoolProperty(name="Use Normals", default=True)
+bpy.types.Object.batch_use_positions = bpy.props.IntProperty(name="Use Positions",min=0,max=255)
+bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
 bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
 bpy.types.Material.bin_wrap_mode_u = bpy.props.EnumProperty(name="Wrap U",items=bin_mat_wrap_modes)
 bpy.types.Material.bin_wrap_mode_v = bpy.props.EnumProperty(name="Wrap V",items=bin_mat_wrap_modes)
 bpy.types.Material.bin_shader_tint = bpy.props.FloatVectorProperty(name="Tint",subtype="COLOR",size=4,min=0.0,max=1.0,default=(1.0, 1.0, 1.0, 1.0))
+bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=0,max=255)
+bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=0,max=255)
+bpy.types.Material.bin_shader_unk3 = bpy.props.IntProperty(name="Mat Unknown 3",min=0,max=255)
 
 #actual model loading stuff
 
@@ -60,7 +75,8 @@ class bin_model_import():
     def __init__(self, pth):
         self.name = os.path.basename(pth)
         stream = bStream(path=pth)
-        stream.seek(12)
+        stream.seek(1)
+        name = stream.readString(len=11)
         self.offsets = [stream.readUInt32() for offset in range(21)]
         print(self.offsets)
 
@@ -79,11 +95,9 @@ class bin_model_import():
         stream.seek(self.offsets[6])
         self.texcoords = [[stream.readFloat(), stream.readFloat()] for x in range(tc_count)]
         
-        root = bpy.data.objects.new('bin_model', None)
-        bpy.context.scene.collection.objects.link(root)
-        self.readGraphObjects(stream, 0, root)
+        self.readGraphObjects(stream, 0, None, name)
 
-    def readGraphObjects(self, stream, index, root):
+    def readGraphObjects(self, stream, index, root, name=None):
         stream.seek(self.offsets[12] + (0x8C * index))
         
         parent_index = stream.readInt16()
@@ -109,11 +123,11 @@ class bin_model_import():
         stream.seek(part_offset + self.offsets[12])
         parts = [[stream.readInt16(), stream.readInt16()] for x in range(part_count)]
         
-        cur_obj = bpy.data.objects.new('Graph_Obj{0}'.format(index), None)
+        cur_obj = bpy.data.objects.new('Graph_Obj{0}'.format(index) if name == None else name, None)
         cur_obj.bin_render_flags = render_flags 
-        print(f"Render Flags: {root.bin_render_flags} For Object {cur_obj.name}")
         cur_obj.parent = root
         cur_obj.location = pos
+        cur_obj.rotation_euler = (math.degrees(rot[0] * 0.001523), -math.degrees(rot[2] * 0.001523), math.degrees(rot[1] * 0.001523))
         cur_obj.scale = scale
         bpy.context.scene.collection.objects.link(cur_obj)
 
@@ -143,6 +157,8 @@ class bin_model_import():
             mesh.update()
             
             batch_obj = bpy.data.objects.new('Batch_{0}'.format(part[1]), mesh)
+            batch_obj.batch_use_normals = batch[2]
+            batch_obj.batch_use_positions = batch[3]
             batch_obj.parent = cur_obj
             
             bpy.context.scene.collection.objects.link(batch_obj)
@@ -160,39 +176,35 @@ class bin_model_import():
     
     def readShader(self, stream, index):
         stream.seek(self.offsets[10] + (0x28 * index))
-        stream.readUInt8()
-        stream.readUInt8()
-        stream.readUInt8()
+        mat = bpy.data.materials.new("BinMaterial_{}".format(index))
+        mat.bin_shader_unk1 = stream.readUInt8()
+        mat.bin_shader_unk2 = stream.readUInt8()
+        mat.bin_shader_unk3 = stream.readUInt8()
         tint = stream.readUInt32()
         stream.readUInt8()
-        bin_materials = self.readMaterial(stream, stream.readInt16(), tint)
+
+        mat.bin_shader_tint = [(tint & 0xFF) / 255.0, (tint & 0x00FF) / 255.0, (tint & 0x0000FF) / 255.0, (tint & 0x000000FF) / 255.0]
+
+        self.readMaterial(stream, stream.readInt16(), mat)
         unk_index = [stream.readInt16() for x in range(7)]
         unk1_index = [stream.readUInt16() for x in range(8)]
-        return bin_materials
+        return mat
         
-    def readMaterial(self, stream, index, tint):
+    def readMaterial(self, stream, index, mat):
         if(index >= 0):
             stream.seek(self.offsets[1] + (0x14 * index))
             #print("Reading Material at {0:X}".format(self.offsets[1] + (0x14 * index)))
-            mat = bpy.data.materials.new("BinMaterial_{}".format(index))
             mat.use_nodes = True
             mat_tree = mat.node_tree
             texIndex = stream.readInt16()
             stream.readUInt16()
             mat.bin_wrap_mode_u = ['CLAMP', 'REPEAT', 'MIRROR'][stream.readUInt8()]
             mat.bin_wrap_mode_v = ['CLAMP', 'REPEAT', 'MIRROR'][stream.readUInt8()]
-            mat.bin_shader_tint = [(tint & 0xFF) / 255, (tint & 0x00FF) / 255, (tint & 0x0000FF) / 255, (tint & 0x0000FF) / 255]
 
-            #mat.texture_coords = 'UV'
-            #mat.mapping = 'FLAT'
             texture_node = mat_tree.nodes.new("ShaderNodeTexImage")
             texture_node.image = self.readTexture(stream, texIndex)
             bsdf = mat_tree.nodes.get('Principled BSDF')
             mat_tree.links.new(texture_node.outputs[0], bsdf.inputs[0])
-            return mat
-        
-        else:
-            return None
 
     def readTexture(self, stream, index):
         stream.seek(self.offsets[0] + (0xC * index))
@@ -224,7 +236,8 @@ class bin_model_import():
         
         #print(attribs)
         
-        stream.readUInt16() # normals, positions
+        use_normals = bool(stream.readUInt8()) # normals
+        use_positions = stream.readUInt8() # positions
         stream.readUInt8() # uvs
         nbt = (stream.readUInt8() == 1) # nbt
         primitive_offset = stream.readUInt32()
@@ -232,7 +245,7 @@ class bin_model_import():
         list_size += (primitive_offset+self.offsets[11])
         face_data, texcoords = self.readPrimitives(stream, attribs, list_size, total_verts, nbt)
         
-        return (face_data, texcoords)
+        return (face_data, texcoords, use_normals, use_positions)
     
     def readAttrib(self, stream, nbt, attrib):
         if(nbt and attrib == GXAttribute.Normal):
@@ -272,7 +285,7 @@ class bin_model_import():
 class bin_model_export():
     def __init__(self, pth):
         #Uses fixed name to get root of bin model, first child is the root of the scene graph
-        root = bpy.context.scene.objects['bin_model'].children[0]
+        root = bpy.context.selected_objects[0]
         
         self.meshes_used = []
         self.materials_used = []
@@ -402,8 +415,8 @@ class bin_model_export():
             'next_index' : -1,
             'prev_index' : prev_index,
             'render_flags' : obj.bin_render_flags,
-            'scale' : [1, 1, 1],
-            'rotation' : [0, 0, 0],
+            'scale' : [obj.scale[0], obj.scale[1], obj.scale[2]],
+            'rotation' : [0, 0, 0], #math.radians(obj.rotation_euler[0])/0.001523, math.radians(obj.rotation_euler[2])/0.001523, -math.radians(obj.rotation_euler[1])/0.001523],
             'position' : [obj.location[0], obj.location[2], -obj.location[1]],
             'part_count': 0,
             'parts':[],

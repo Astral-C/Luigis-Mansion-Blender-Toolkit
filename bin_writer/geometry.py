@@ -48,7 +48,7 @@ class BatchManager():
             m = mesh.to_mesh()
             #m.calc_tangents() #make sure we have tangent data
             #self.texcoord_data.extend([[0, 0] for x in range(len(m.vertices))])
-            self.batches.append(Batch(m, total, use_bump, self.texcoord_data))
+            self.batches.append(Batch(m, total, use_bump, self.texcoord_data, mesh.batch_use_normals, mesh.batch_use_positions))
             self.batch_indices[m.name] = cur_batch
             total += len(m.vertices)
             cur_batch += 1
@@ -84,7 +84,7 @@ class BatchManager():
         primitive_buffer.close()
 
 class Batch():
-    def __init__(self, mesh, start, nbt, uvs):
+    def __init__(self, mesh, start, nbt, uvs, use_normals, use_positions):
 
         self.face_count = len(mesh.polygons) #Isnt used by the game so, not important really
         self.attributes = (0 | 1 << 9 | 1 << 10 | 1 << 13)
@@ -92,6 +92,8 @@ class Batch():
         #SpaceCats: I dont like this, nbt should only be on where its used.
         #TODO: Find a way to only enable nbt on only meshes that use it
         self.useNBT = nbt
+        self.use_normals = use_normals
+        self.use_positions = use_positions
         GeneratePrimitives(mesh, self.primitives, self.useNBT, start, uvs)
         self.primitives.padTo32(self.primitives.tell())
         self.primitives.seek(0)
@@ -100,8 +102,8 @@ class Batch():
         stream.writeUInt16(self.face_count)
         stream.writeUInt16(list_size)
         stream.writeUInt32(self.attributes)
-        stream.writeUInt8(1) # Use Normals
-        stream.writeUInt8(1) # Use Positions
+        stream.writeUInt8(self.use_normals) # Use Normals
+        stream.writeUInt8(self.use_positions) # Use Positions. Sometimes its 2?????
         stream.writeUInt8(1) # Uv Count
         stream.writeUInt8(0) # Use NBT
         stream.writeUInt32(offset)

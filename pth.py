@@ -2,6 +2,7 @@ import os
 import bpy
 from bStream import *
 from itertools import chain 
+import math
 
 def load_anim(pth):
     stream = bStream(path=pth)
@@ -49,21 +50,39 @@ def load_anim(pth):
     target_anim_data = target.animation_data_create()
 
 
-    GenerateFCurves(target_action,'x', 0, frames['x'])
-    GenerateFCurves(target_action,'y', 1, frames['z'], invert=True)
-    GenerateFCurves(target_action,'z', 2, frames['y'])#clip_start
+    GenerateFCurves(target_action, "rotation_euler", 'x', 0, frames['rx'])
+    GenerateFCurves(target_action, "rotation_euler", 'y', 1, frames['rz'], invert=True)
+    GenerateFCurves(target_action, "rotation_euler", 'z', 2, frames['ry'])
+
+    GenerateFCurves(target_action, "location", 'x', 0, frames['x'])
+    GenerateFCurves(target_action, "location", 'y', 1, frames['z'], invert=True)
+    GenerateFCurves(target_action, "location", 'z', 2, frames['y'])
 
     target_anim_data.action = target_action
 
     bpy.context.scene.collection.objects.link(target)
 
-def GenerateFCurves(action, track, track_index, keyframes, invert=False):
-    curve = action.fcurves.new("location", index=track_index, action_group=f"Loc{track.upper()}")
+def GenerateFCurves(action, curve, track, track_index, keyframes, invert=False):
+    curve = action.fcurves.new(curve, index=track_index, action_group=f"Loc{track.upper()}")
     curve.keyframe_points.add(count=len(keyframes))
 
     if(invert):
         for f in range(len(keyframes)):
             keyframes[f][1] = -keyframes[f][1]
+
+    curve.keyframe_points.foreach_set("co", list(chain.from_iterable(keyframes)))
+    curve.update()
+
+def GenerateFCurvesRot(action, track, track_index, keyframes, invert=False):
+    curve = action.fcurves.new("rotation_euler", index=track_index, action_group=f"Loc{track.upper()}")
+    curve.keyframe_points.add(count=len(keyframes))
+
+    if(invert):
+        for f in range(len(keyframes)):
+            keyframes[f][1] = -keyframes[f][1]
+
+        for f in range(len(keyframes)):
+            keyframes[f][1] = math.degrees(keyframes[f][1] * 0.0001533981)
 
     curve.keyframe_points.foreach_set("co", list(chain.from_iterable(keyframes)))
     curve.update()
