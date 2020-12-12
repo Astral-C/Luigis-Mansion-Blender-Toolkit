@@ -100,8 +100,12 @@ class MansionAnmExport(bpy.types.Operator, ExportHelper):
         maxlen=255,
     )
 
+    Loop = BoolProperty(
+        default=False
+    )
+
     def execute(self, context):
-        anm.write_anim(self.filepath)
+        anm.write_anim(self.filepath, self.Loop)
         return {'FINISHED'}
     
     def invoke(self, context, event):
