@@ -124,3 +124,99 @@ def ANMLoadGroupData(stream, offset, group, out_pos, frames, rot=False):
         for frame in range(0,group['KeyCount']):
             frame_data = [stream.readFloat() for x in range(0, (4 if(group["Flags"] == 0x80) else 3))]
             frames[out_pos].append([int(frame_data[0]), frame_data[1] if not rot else math.degrees(frame_data[1] * 0.0001533981)])
+
+def write_anim(pth, loop=True):
+    stream = bStream(path=pth)
+    root = bpy.context.selected_objects[0]
+
+    stream.writeUInt8(2) #version
+    loop = stream.writeUInt8(int(loop))
+    stream.writeUInt16(0) #Padding
+    frame_count = stream.writeUInt32(int(bpy.context.scene.frame_end))
+
+    offsets_pos = stream.tell()
+    stream.writeUInt32s(0, 4)
+
+    if(root.type != "EMPTY"):
+        #not a scenegraph node
+        return
+
+    scale_keys = []
+    rotate_keys = []
+    translate_keys = []
+    node_groups = []
+
+    ANMGenNodes(root, stream, scale_keys, rotate_keys, translate_keys, node_groups)
+
+    node_group_offset = stream.tell()
+    for node in node_groups:
+        for group in node:
+            stream.writeUInt16(group['KeyCount'])
+            stream.writeUInt16(group['BeginIndex'])
+            stream.writeUInt16(group['Flags'])
+
+    scale_offset = stream.tell()
+    for sk in scale_keys:
+        stream.writeFloat(sk)
+
+    rotate_offset = stream.tell()
+    for rk in rotate_keys:
+        stream.writeFloat(math.radians(rk))
+    
+    translate_offset = stream.tell()
+    for tk in translate_keys:
+        stream.writeFloat(tk)
+
+
+
+    stream.seek(offsets_pos)
+    stream.writeUInt32(scale_offset)
+    stream.writeUInt32(rotate_offset)
+    stream.writeUInt32(translate_offset)
+    stream.writeUInt32(node_group_offset)
+
+def ANMFromFCurves(curve, group, rot=False, invert=False):
+    print("Fcurve type is {}".format(curve.data_path))
+    bi = len(group)
+    if(len(curve.keyframe_points) == 1):
+        if(rot):
+            group.append((curve.keyframe_points[0].co[1] if not invert else -curve.keyframe_points[0].co[1]) / 0.0001533981)
+        else:
+            group.append(curve.keyframe_points[0].co[1] if not invert else -curve.keyframe_points[0].co[1])
+        return {'KeyCount':1, 'BeginIndex':bi, 'Flags':0}
+    
+    else:
+        for keyframe in curve.keyframe_points:
+            if(rot):
+                group.extend([keyframe.co[0], (keyframe.co[1] if not invert else -keyframe.co[1]) / 0.0001533981, 1.0])
+            else:
+                group.extend([keyframe.co[0], keyframe.co[1] if not invert else -keyframe.co[1], 1.0])
+        return {'KeyCount':len(curve.keyframe_points), 'BeginIndex':bi, 'Flags':0}
+
+
+def ANMGenNodes(node, stream, s, r, t, ng):
+    print("Writing Data For {}".format(node.name))
+
+    node_curves = None
+    if(node.animation_data != None):
+        node_curves = node.animation_data.action.fcurves
+    else:
+        return #uhhh
+
+    scale_x = ANMFromFCurves(node_curves[0], s)
+    scale_y = ANMFromFCurves(node_curves[6], s)
+    scale_z = ANMFromFCurves(node_curves[3], s, invert=True)
+
+    rotate_x = ANMFromFCurves(node_curves[1], r, rot=True)
+    rotate_y = ANMFromFCurves(node_curves[7], r, rot=True)
+    rotate_z = ANMFromFCurves(node_curves[4], r, rot=True, invert=True)
+
+    translate_x = ANMFromFCurves(node_curves[2], t)
+    translate_y = ANMFromFCurves(node_curves[8], t)
+    translate_z = ANMFromFCurves(node_curves[5], t)
+
+    ng.append([scale_x, scale_y, scale_z, rotate_x, rotate_y, rotate_z, translate_x, translate_y, translate_z])
+
+    for n in node.children:
+        if(node.type == "EMPTY"):
+            ANMGenNodes(n, stream, s, r, t, ng)

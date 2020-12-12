@@ -82,6 +82,32 @@ class MansionAnmImport(bpy.types.Operator, ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
+class MansionAnmExport(bpy.types.Operator, ExportHelper):
+    bl_idname = "export_anim.mansionanm"
+    bl_label = "Export ANM"
+    bl_description = "Export Bin animation using this node as the root"
+
+    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+    @classmethod
+    def poll(cls, context):
+        return context is not None
+    
+    filename_ext = ".anm"
+
+    filter_glob: StringProperty(
+        default="*.anm",
+        options={'HIDDEN'},
+        maxlen=255,
+    )
+
+    def execute(self, context):
+        anm.write_anim(self.filepath)
+        return {'FINISHED'}
+    
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
 class MansionMDLImport(bpy.types.Operator, ImportHelper):
     bl_idname = "import_model.mansionmdl"
     bl_label = "Import MDL"

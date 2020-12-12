@@ -29,7 +29,9 @@ class GraphNodeSettingsPanel(bpy.types.Panel):
 
             self.layout.operator_context = 'INVOKE_DEFAULT' #'INVOKE_AREA'
             self.layout.operator("import_anim.mansionanm", text="Import ANM")
+            self.layout.operator("export_anim.mansionanm", text="Export ANM")
             self.layout.operator("export_model.mansionbin", text="Export Bin")
+            
         if(bpy.context.active_object.type == 'MESH'):
             self.layout.row().prop(bpy.context.active_object, "batch_use_normals")
             self.layout.row().prop(bpy.context.active_object, "batch_use_positions")
@@ -59,7 +61,7 @@ bin_mat_wrap_modes = [
 
 bpy.utils.register_class(GraphNodeSettingsPanel) #must be registered here
 bpy.types.Object.batch_use_normals = bpy.props.BoolProperty(name="Use Normals", default=True)
-bpy.types.Object.batch_use_positions = bpy.props.IntProperty(name="Use Positions",min=0,max=255)
+bpy.types.Object.batch_use_positions = bpy.props.IntProperty(name="Use Positions",min=0,max=255,default=2)
 bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
 bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
 bpy.types.Material.bin_wrap_mode_u = bpy.props.EnumProperty(name="Wrap U",items=bin_mat_wrap_modes)
