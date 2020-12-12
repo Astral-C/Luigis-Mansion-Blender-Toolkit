@@ -10,8 +10,8 @@ This project requires modified python bindings for libsquish which you can find 
 
 ## Progress
 - [x] Bin Model Import/Export
+- [x] ANM Animation Import/Export
 - [x] CMN Import/Export
+- [~] PTH Import/Export (In Progress)
 - [ ] COL Import/Export (In Progress)
-- [ ] PTH Import/Export (In Progress)
-- [ ] CMB Import/Export?
 - [ ] MDL Import/Export?
