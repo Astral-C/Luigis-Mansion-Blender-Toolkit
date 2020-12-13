@@ -161,7 +161,7 @@ def write_anim(pth, loop=True):
 
     rotate_offset = stream.tell()
     for rk in rotate_keys:
-        stream.writeFloat(math.radians(rk))
+        stream.writeFloat(rk)
     
     translate_offset = stream.tell()
     for tk in translate_keys:
@@ -175,22 +175,17 @@ def write_anim(pth, loop=True):
     stream.writeUInt32(translate_offset)
     stream.writeUInt32(node_group_offset)
 
-def ANMFromFCurves(curve, group, rot=False, invert=False):
+def ANMFromFCurves(curve, group, radians=False):
     print("Fcurve type is {}".format(curve.data_path))
     bi = len(group)
     if(len(curve.keyframe_points) == 1):
-        if(rot):
-            group.append((curve.keyframe_points[0].co[1] if not invert else -curve.keyframe_points[0].co[1]) / 0.0001533981)
-        else:
-            group.append(curve.keyframe_points[0].co[1] if not invert else -curve.keyframe_points[0].co[1])
+        group.append(curve.keyframe_points[0].co[1] if not radians else (math.radians(curve.keyframe_points[0].co[1]) / 0.0001533981))
         return {'KeyCount':1, 'BeginIndex':bi, 'Flags':0}
     
     else:
         for keyframe in curve.keyframe_points:
-            if(rot):
-                group.extend([keyframe.co[0], (keyframe.co[1] if not invert else -keyframe.co[1]) / 0.0001533981, 1.0])
-            else:
-                group.extend([keyframe.co[0], keyframe.co[1] if not invert else -keyframe.co[1], 1.0])
+            print(keyframe.co)
+            group.extend([keyframe.co[0], keyframe.co[1] if not radians else (math.radians(keyframe.co[1]) / 0.0001533981), 1.0])
         return {'KeyCount':len(curve.keyframe_points), 'BeginIndex':bi, 'Flags':0}
 
 
@@ -205,11 +200,13 @@ def ANMGenNodes(node, stream, s, r, t, ng):
 
     scale_x = ANMFromFCurves(node_curves[0], s)
     scale_y = ANMFromFCurves(node_curves[6], s)
-    scale_z = ANMFromFCurves(node_curves[3], s, invert=True)
+    scale_z = ANMFromFCurves(node_curves[3], s)
 
-    rotate_x = ANMFromFCurves(node_curves[1], r, rot=True)
-    rotate_y = ANMFromFCurves(node_curves[7], r, rot=True)
-    rotate_z = ANMFromFCurves(node_curves[4], r, rot=True, invert=True)
+    print("Fuck you blender {} {} {}".format(len(node_curves[1].keyframe_points), len(node_curves[7].keyframe_points), len(node_curves[4].keyframe_points)))
+
+    rotate_x = ANMFromFCurves(node_curves[1], r, radians=True)
+    rotate_y = ANMFromFCurves(node_curves[7], r, radians=True)
+    rotate_z = ANMFromFCurves(node_curves[4], r, radians=True)
 
     translate_x = ANMFromFCurves(node_curves[2], t)
     translate_y = ANMFromFCurves(node_curves[8], t)
