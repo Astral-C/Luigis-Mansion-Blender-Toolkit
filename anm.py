@@ -176,6 +176,7 @@ def write_anim(pth, loop=True):
     stream.writeUInt32(node_group_offset)
 
 def ANMFromFCurves(curve, group, radians=False):
+    bi = len(group)
     if(len(curve.keyframe_points) == 1):
         group.append(curve.keyframe_points[0].co[1] if not radians else (math.radians(curve.keyframe_points[0].co[1]) / 0.0001533981))
         return {'KeyCount':1, 'BeginIndex':bi, 'Flags':0}
