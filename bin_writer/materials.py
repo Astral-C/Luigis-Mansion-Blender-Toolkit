@@ -63,8 +63,8 @@ class Shader():
 
         tex = None
 
-        print(f"Setting up Material {material.name}, uses nodes {material.use_nodes}, input type {material.node_tree.nodes[0].inputs[0].links[0].from_node.type}")
         if(material.use_nodes):
+            print(f"Setting up Material {material.name}, uses nodes {material.use_nodes}, input type {material.node_tree.nodes[0].inputs[0].links[0].from_node.type}")
             tex = material.node_tree.nodes.get("Principled BSDF").inputs[0].links[0].from_node.image
         
         self.bump_index = -1

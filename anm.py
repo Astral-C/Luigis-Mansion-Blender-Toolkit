@@ -98,18 +98,27 @@ def ANMLoadNodes(stream, local_root, index, scale_key_offset, rotate_key_offset,
 def GenerateFCurves(action, curve, track, track_index, keyframes, invert=False):
     curve = action.fcurves.new(curve, index=track_index, action_group=f"Loc{track.upper()}")
     curve.keyframe_points.add(count=len(keyframes))
+    keyframe_data = [keyframe[0] for keyframe in keyframes]
 
-    if(invert):
-        for f in range(len(keyframes)):
-            keyframes[f][1] = -keyframes[f][1]
+    if(len(keyframes) == 1):
+        if(invert):
+           keyframes[0][1] = -keyframes[0][1]
 
-    curve.keyframe_points.foreach_set("co", list(chain.from_iterable(keyframes)))
+        curve.keyframe_points.foreach_set("co", list(chain.from_iterable(keyframes)))
+        pass
+
+    else:
+        if(invert):
+            for f in range(len(keyframe_data)):
+                keyframe_data[f][1] = -keyframe_data[f][1]
+
+        curve.keyframe_points.foreach_set("co", list(chain.from_iterable(keyframe_data)))
     curve.update()
 
 def GenerateKeyframes(obj, data_path, keyframes):
     for keyframe in keyframes:
-        obj[data_path] = keyframe[1]
-        obj.keyframe_insert(data_path, frame=keyframe[0])
+        obj[data_path] = keyframe[0][1]
+        obj.keyframe_insert(data_path, frame=keyframe[0][0])
 
 def ANMLoadGroupDef(stream):
     return  {'KeyCount':stream.readUInt16(),'BeginIndex':stream.readUInt16(),'Flags':stream.readUInt16()}
@@ -123,7 +132,26 @@ def ANMLoadGroupData(stream, offset, group, out_pos, frames, rot=False):
     else:
         for frame in range(0,group['KeyCount']):
             frame_data = [stream.readFloat() for x in range(0, (4 if(group["Flags"] == 0x80) else 3))]
-            frames[out_pos].append([int(frame_data[0]), frame_data[1] if not rot else math.degrees(frame_data[1] * 0.0001533981)])
+
+            # using lists here is probably slow but it makes accessing the data easier later
+            # ill find a way to optimize it later I swear
+            if(frame_data[1] != 0):
+                left_handle = [(frame_data[1] - 1) / frame_data[1]]
+            else:
+                left_handle = [(frame_data[1] - 1)]
+
+            left_handle.append(frame_data[1] * left_handle[0])
+
+
+            right_handle = [0.0, 0.0]
+            # currently slope is broken, I wanted to fix this while brining together all the animation exporters but people were complaining about how long a release was taking
+            # if you were one of these people, don't complain if its not perfect.
+
+            if(len(frame_data) == 4):
+                right_handle[0] = (frame_data[1] + 1) / frame_data[2]
+                right_handle[1] = frame_data[1] * right_handle[0]                
+
+            frames[out_pos].append([[int(frame_data[0]), frame_data[1] if not rot else math.degrees(frame_data[1] * 0.0001533981)], left_handle, right_handle])
 
 def write_anim(pth, loop=True):
     stream = bStream(path=pth)
@@ -167,8 +195,6 @@ def write_anim(pth, loop=True):
     for tk in translate_keys:
         stream.writeFloat(tk)
 
-
-
     stream.seek(offsets_pos)
     stream.writeUInt32(scale_offset)
     stream.writeUInt32(rotate_offset)
@@ -179,12 +205,17 @@ def ANMFromFCurves(curve, group, radians=False):
     bi = len(group)
     if(len(curve.keyframe_points) == 1):
         group.append(curve.keyframe_points[0].co[1] if not radians else (math.radians(curve.keyframe_points[0].co[1]) / 0.0001533981))
-        return {'KeyCount':1, 'BeginIndex':bi, 'Flags':0}
+        return {'KeyCount':1, 'BeginIndex':bi, 'Flags': 0}
     
     else:
         for keyframe in curve.keyframe_points:
-            group.extend([keyframe.co[0], keyframe.co[1] if not radians else (math.radians(keyframe.co[1]) / 0.0001533981), 0.0])
-        return {'KeyCount':len(curve.keyframe_points), 'BeginIndex':bi, 'Flags':0}
+
+            inslope = (keyframe.co[1] - keyframe.handle_left[1]) / (keyframe.co[0] - keyframe.handle_left[0])
+            outslope = (keyframe.co[1] - keyframe.handle_right[1]) / (keyframe.co[0] - keyframe.handle_right[0])
+            #print("Inslope {}\nOutslope {}".format(inslope, outslope))
+            group.extend([keyframe.co[0], keyframe.co[1] if not radians else (math.radians(keyframe.co[1]) / 0.0001533981), inslope, outslope])
+    
+        return {'KeyCount':len(curve.keyframe_points), 'BeginIndex':bi, 'Flags': 0x80}
 
 
 def ANMGenNodes(node, stream, s, r, t, ng):

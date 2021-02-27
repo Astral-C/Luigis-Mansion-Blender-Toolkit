@@ -1,7 +1,7 @@
 import bpy
 import anm, binmdl, col, cmn, cmb, mdl, pth
 from bpy_extras.io_utils import ImportHelper, ExportHelper
-from bpy.props import StringProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from bpy.types import Operator
 from bStream import *
 
@@ -21,6 +21,10 @@ class MansionBinImport(bpy.types.Operator, ImportHelper):
         options={'HIDDEN'},
         maxlen=255,
     )
+
+    #apply_wrap_modes: BoolProperty(
+    #    default=False
+    #)
 
     def execute(self, context):
         binmdl.bin_model_import(self.filepath)
@@ -48,8 +52,13 @@ class MansionBinExport(bpy.types.Operator, ExportHelper):
         maxlen=255,
     )
 
+    Tristrips: BoolProperty(
+        default=False,
+
+    )
+
     def execute(self, context):
-        binmdl.bin_model_export(self.filepath)
+        binmdl.bin_model_export(self.filepath, self.Tristrips)
         return {'FINISHED'}
     
     def invoke(self, context, event):
@@ -104,8 +113,12 @@ class MansionAnmExport(bpy.types.Operator, ExportHelper):
         default=False
     )
 
+    Slope = FloatProperty(
+        default=-1.0
+    )
+
     def execute(self, context):
-        anm.write_anim(self.filepath, self.Loop)
+        anm.write_anim(self.filepath, self.Slope, self.Loop)
         return {'FINISHED'}
     
     def invoke(self, context, event):
@@ -300,11 +313,11 @@ class TOPBAR_MT_file_import_mansion(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
         self.layout.operator(MansionBinImport.bl_idname, text="Bin (.bin)")
-        self.layout.operator(MansionMDLImport.bl_idname, text="MDL (.mdl)")
+        #self.layout.operator(MansionMDLImport.bl_idname, text="MDL (.mdl)")
         self.layout.operator(MansionColImport.bl_idname, text="Collision (.mp)")
         self.layout.operator(MansionCmnImport.bl_idname, text="CMN (.cmn)")
         self.layout.operator(MansionPthImport.bl_idname, text="PTH (.pth)")
-        self.layout.operator(GrezzoCmbImport.bl_idname, text="Grezzo CMB (.cmb)")
+        #self.layout.operator(GrezzoCmbImport.bl_idname, text="Grezzo CMB (.cmb)")
 
 class TOPBAR_MT_file_export_mansion(bpy.types.Menu):
     bl_idname = 'export_model.mansion'

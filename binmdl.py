@@ -187,13 +187,19 @@ class bin_model_import():
 
         mat.bin_shader_tint = [(tint & 0xFF) / 255.0, (tint & 0x00FF) / 255.0, (tint & 0x0000FF) / 255.0, (tint & 0x000000FF) / 255.0]
 
-        self.readMaterial(stream, stream.readInt16(), mat)
-        unk_index = [stream.readInt16() for x in range(7)]
+        pos = stream.tell()
+        self.readMaterial(stream, stream.readInt16(), mat, False)
+        stream.seek(pos+2)
+        bmp = stream.readInt16()
+        if(bmp != -1):
+            self.readMaterial(stream, bmp, mat, True)
+
+        unk_index = [stream.readInt16() for x in range(6)]
         unk1_index = [stream.readUInt16() for x in range(8)]
         return mat
         
-    def readMaterial(self, stream, index, mat):
-        if(index >= 0):
+    def readMaterial(self, stream, index, mat, isBump):
+        if(index >= 0 and index < 100):
             stream.seek(self.offsets[1] + (0x14 * index))
             #print("Reading Material at {0:X}".format(self.offsets[1] + (0x14 * index)))
             mat.use_nodes = True
@@ -206,18 +212,30 @@ class bin_model_import():
             texture_node = mat_tree.nodes.new("ShaderNodeTexImage")
             texture_node.image = self.readTexture(stream, texIndex)
             bsdf = mat_tree.nodes.get('Principled BSDF')
-            mat_tree.links.new(texture_node.outputs[0], bsdf.inputs[0])
+            if(not isBump):
+                mat_tree.links.new(texture_node.outputs[0], bsdf.inputs[0])
+            else:
+                #TODO: make this more accurate to the game.
+                disp = mat_tree.nodes.new("ShaderNodeDisplacement")
+                texture_node.interpolation = 'Cubic' #?
+                mat_tree.links.new(texture_node.outputs[0], disp.inputs[0])
+                mat_tree.links.new(disp.outputs[0], mat_tree.nodes.get('Material Output').inputs[2])
+                pass
+            
 
     def readTexture(self, stream, index):
         stream.seek(self.offsets[0] + (0xC * index))
         width = stream.readUInt16()
         height = stream.readUInt16()
         format = stream.readInt8()
+        print(hex(format))
         stream.readUInt8()
         stream.readUInt16()
         offset = stream.readUInt32()
         if(format == 0x0E):
             return gx_texture.bi_from_cmpr(stream, width, height, self.offsets[0] + offset, index)
+        elif(format == 0x05):
+            return gx_texture.bi_from_rgb5A3(stream, width, height, self.offsets[0] + offset, index)      
         elif(format == 0x04):
             return gx_texture.bi_from_rgb565(stream, width, height, self.offsets[0] + offset, index)       
     
@@ -265,7 +283,7 @@ class bin_model_import():
         face_data = [] # vertex indicies to use in this primitive
         gxprimitives = [] #stores raw element buffers
         
-        print(f'Reading primitve with ttribs {attributes}')
+        print(f'Reading primitve with attribs {attributes}')
         current_primitive = stream.readUInt8()
         # read the primitives
         while(GXPrimitiveTypes.valid_opcode(current_primitive) and stream.fhandle.tell() < size):
@@ -285,7 +303,7 @@ class bin_model_import():
         return (face_data, local_texcoords)
 
 class bin_model_export():
-    def __init__(self, pth):
+    def __init__(self, pth, use_tristrips):
         #Uses fixed name to get root of bin model, first child is the root of the scene graph
         root = bpy.context.selected_objects[0]
         
@@ -295,7 +313,7 @@ class bin_model_export():
 
         self.textures = TextureManager(self.materials_used)
         self.shaders = ShaderManager(self.textures.material_indices, self.materials_used)
-        self.batches = BatchManager(self.meshes_used)
+        self.batches = BatchManager(self.meshes_used, use_tristrips)
         
         print(f"Meshes being used are {self.meshes_used}")
 
@@ -308,7 +326,12 @@ class bin_model_export():
         offsets = [0 for x in range(21)]
         out = bStream(path=pth)
         out.writeUInt8(0x02)
-        out.writeString("NewBinModel") #generic name lmao
+        
+        if(len(root.name) < 11):
+            out.writeString(root.name + (" " * (11 - len(root.name)))) #generic name lmao
+        else:
+            out.writeString(root.name[0:11])
+
         out.writeUInt32List(offsets)
 
         offsets[0] = out.tell()
@@ -320,26 +343,23 @@ class bin_model_export():
         out.padTo32(out.tell())
 
         offsets[2] = out.tell()
-        for mesh in self.meshes_used:
-            for vertex in mesh.to_mesh().vertices:
-                out.writeInt16(int(vertex.co[0]))
-                out.writeInt16(int(vertex.co[2]))
-                out.writeInt16(int(-vertex.co[1]))
+        for vertex in self.batches.mesh_data['vertex']:
+            out.writeInt16(int(vertex[0]))
+            out.writeInt16(int(vertex[2]))
+            out.writeInt16(int(-vertex[1]))
         
         out.padTo32(out.tell())
         offsets[3] = out.tell()
-        for mesh in self.meshes_used:
-            mesh_data = mesh.to_mesh()
-            for vertex in mesh_data.vertices:
-                out.writeFloat(-int(vertex.normal[0]))
-                out.writeFloat(-int(vertex.normal[1]))
-                out.writeFloat(-int(vertex.normal[2]))
+        for normal in self.batches.mesh_data['normal']:
+            out.writeFloat(-normal[0])
+            out.writeFloat(-normal[1])
+            out.writeFloat(-normal[2])
 
         out.padTo32(out.tell())
         offsets[6] = out.tell()
-        for texcoord in self.batches.texcoord_data:
-                out.writeFloat(texcoord[0])
-                out.writeFloat(-texcoord[1])
+        for uv in self.batches.mesh_data['uv']:
+            out.writeFloat(uv[0])
+            out.writeFloat(-uv[1])
 
         out.padTo32(out.tell())
 

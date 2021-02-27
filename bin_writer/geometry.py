@@ -2,55 +2,122 @@ import math
 import numpy as np
 from bStream import *
 
-def GeneratePrimitives(mesh, buffer, nbt, start, uvs):
+class GXVertex():
+    def __init__(self, vertex, normal, uv):
+        self.vertex = vertex
+        self.normal = normal
+        self.uv = uv
+
+def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
     normal_offset = 0
     uv_map = mesh.uv_layers.active.data
     for polygon in mesh.polygons:
         buffer.writeUInt8(0x90)
         buffer.writeUInt16(3)
-        
         for idx in range(3):
-
             loop = mesh.loops[polygon.loop_indices[idx]]
-            
-            buffer.writeUInt16(start + loop.vertex_index) # vertex
-            buffer.writeUInt16(start + loop.vertex_index + normal_offset) # normal
-            
-            # Disabled until I can find a good way to solve the indexing problem
-            #if(nbt):
-            #    buffer.writeUInt16(start + loop.vertex_index + normal_offset + 1) # bitangent
-            #    buffer.writeUInt16(start + loop.vertex_index + normal_offset + 2) # tangent
-            #    mesh_data['normals'][start + loop.vertex_index + normal_offset + 1] = polygon.bitangent
-            #    mesh_data['normals'][start + loop.vertex_index + normal_offset + 2] = polygon.tangent
-            #    normal_offset += 2
-            uvs.append([uv_map[polygon.loop_indices[idx]].uv[0], uv_map[polygon.loop_indices[idx]].uv[1]])
-            buffer.writeUInt16(len(uvs)-1) # texcoord Index
 
+            uv = uv_map[polygon.loop_indices[idx]].uv
+            vertex = mesh.vertices[loop.vertex_index].co
+            normal = mesh.vertices[loop.vertex_index].normal
+            vi = -1
+            uvi = -1
+            noi = -1
+            if(uv in mesh_data['uv']):
+                uvi = mesh_data['uv'].index(uv)
+            else:
+                uvi = len(mesh_data['uv'])
+                mesh_data['uv'].append(uv)
 
-def GenerateTristripPrimitives(mesh, buffer, nbt, start):
-    normal_offset = 0
-    previous_edges = []
-    #for polygon in mesh.polygons:
-    #    for 
+            if(vertex in mesh_data['vertex']):
+                vi = mesh_data['vertex'].index(vertex)
+            else:
+                vi = len(mesh_data['vertex'])
+                mesh_data['vertex'].append(vertex)
+
+            if(normal in mesh_data['normal']):
+                noi = mesh_data['normal'].index(normal)
+            else:
+                noi = len(mesh_data['normal'])
+                mesh_data['normal'].append(normal)
+
+            buffer.writeUInt16(vi) # vertex
+            buffer.writeUInt16(noi) # normal
+            buffer.writeUInt16(uvi)
+
+def GenerateTristripPrimitives(mesh, buffer, nbt, mesh_data):
+    try:
+        from pyffi.utils.tristrip import stripify
+        normal_offset = 0
+        uv_map = mesh.uv_layers.active.data
+        triangles = []
+
+        uv_tweak = {}
+
+        for polygon in mesh.polygons:
+            ltri = []
+            for idx in range(3):
+                loop = mesh.loops[polygon.loop_indices[idx]]
+
+                uv = uv_map[polygon.loop_indices[idx]].uv
+                vertex = mesh.vertices[loop.vertex_index].co
+                normal = mesh.vertices[loop.vertex_index].normal
+                vi = -1
+                uvi = -1
+                noi = -1
+
+                if(vertex in mesh_data['vertex']):
+                    vi = mesh_data['vertex'].index(vertex)
+                else:
+                    vi = len(mesh_data['vertex'])
+                    mesh_data['vertex'].append(vertex)
+
+                if(vi in mesh_data['uv']):
+                    #terrible, very very gross
+                    uv_tweak[vi] = mesh_data['uv'].index(uv)
+                else:
+                    mesh_data['uv'].append(uv)
+                    uv_tweak[vi] = mesh_data['uv'].index(uv)
+
+                if(normal in mesh_data['normal']):
+                    noi = mesh_data['normal'].index(normal)
+                else:
+                    noi = len(mesh_data['normal'])
+                    mesh_data['normal'].append(normal)
+
+                ltri.append(vi)
+
+            triangles.append(tuple(ltri))
+
+        strips = stripify(triangles, True)
+        for strip in strips:
+            buffer.writeUInt8(0x98)
+            buffer.writeUInt16(len(strip))
+            for v in strip:
+                buffer.writeUInt16(v)
+                buffer.writeUInt16(v)
+                # still very very gross
+                buffer.writeUInt16(uv_tweak[v])
+    except:
+        print("Tristrips require PYFFI")
 
 class BatchManager():
-    def __init__(self, meshes, use_bump=False):
+    def __init__(self, meshes, use_tristrips, use_bump=False):
         total = 0
         
         self.batches = []
         self.batch_indices = {}
-        self.texcoord_data = []
+        self.mesh_data = {'vertex':[], 'normal':[], 'uv':[]}
 
         #To ensure that vertices are in the right order, we build the vertex/texcoord/normal lists here
         
         cur_batch = 0 
         for mesh in meshes:
             m = mesh.to_mesh()
-            #m.calc_tangents() #make sure we have tangent data
-            #self.texcoord_data.extend([[0, 0] for x in range(len(m.vertices))])
-            self.batches.append(Batch(m, total, use_bump, self.texcoord_data, mesh.batch_use_normals, mesh.batch_use_positions))
+
+            self.batches.append(Batch(m, use_bump, self.mesh_data, mesh.batch_use_normals, mesh.batch_use_positions, use_tristrips))
             self.batch_indices[m.name] = cur_batch
-            total += len(m.vertices)
+
             cur_batch += 1
             print(f"Added Batch for mesh {m.name} with index {cur_batch}")
 
@@ -66,7 +133,6 @@ class BatchManager():
         primitive_buffer = bStream()
         
         batch_headers.pad((0x18 * len(self.batches)))
-        batch_headers.padTo32(batch_headers.tell())
         primitives_start = batch_headers.tell()
         batch_headers.seek(0)
 
@@ -84,17 +150,20 @@ class BatchManager():
         primitive_buffer.close()
 
 class Batch():
-    def __init__(self, mesh, start, nbt, uvs, use_normals, use_positions):
+    def __init__(self, mesh, nbt, mesh_data, use_normals, use_positions, use_tristrips):
 
         self.face_count = len(mesh.polygons) #Isnt used by the game so, not important really
         self.attributes = (0 | 1 << 9 | 1 << 10 | 1 << 13)
         self.primitives = bStream()
-        #SpaceCats: I dont like this, nbt should only be on where its used.
-        #TODO: Find a way to only enable nbt on only meshes that use it
         self.useNBT = nbt
         self.use_normals = use_normals
         self.use_positions = use_positions
-        GeneratePrimitives(mesh, self.primitives, self.useNBT, start, uvs)
+
+        if(use_tristrips):
+            GenerateTristripPrimitives(mesh, self.primitives, self.useNBT, mesh_data)
+        else:
+            GeneratePrimitives(mesh, self.primitives, self.useNBT, mesh_data)
+        
         self.primitives.padTo32(self.primitives.tell())
         self.primitives.seek(0)
 
