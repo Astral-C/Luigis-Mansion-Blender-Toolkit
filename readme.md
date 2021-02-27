@@ -6,22 +6,33 @@ over models output. Please note that the imported models will not look perfect a
 Please note that the current version is **NOT v1.0**, it should not be considered a complete product.
 
 ## Current Release FAQ
- Q: Why is the exported bin model so big?
- A: Squish's texture compression is not as aggressive as nintendo's original and a lack of model optimization (tristrips, trifans, quads, etc).
+Q: Why is the exported bin model so big?
+
+A: Squish's texture compression is not as aggressive as nintendo's original and a lack of model optimization (tristrips, trifans, quads, etc).
+
 
 Q: I my exported bin model is missing parts in game
+
 A: Check your normals, again split normals are currently not supported so blender's auto generated normals are used.
     
+
 Q: Why does the imported model look blocky?
+
 A: Blender automatically regenerates normals and split normals have not yet been set up.
     
+
 Q: Why don't exported emboss maps work?
+
 A: Exporting emboss maps are currently not supported due to issues with blender's scripting api.
 
+
 Q: Why do my tristrip models have broken uvs?
+
 A: Tristrip export is currently experimental and unfinished.
 
+
 Q: Something else is broken and not listed here
+
 A: Use the issues tab above to report the bug or contact me through discord with a properly formatted bug report.
 
 
