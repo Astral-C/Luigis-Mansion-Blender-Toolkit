@@ -26,6 +26,8 @@ Please note that the current version is **NOT v1.0**, it should not be considere
 
 
 ## Requirements
+If you intend to use the experimental tristrip mode, clone pyffi into the `bin_writer` directory
+
 This project requires modified python bindings for libsquish which you can find in [this repository](https://github.com/SpaceCats64/BinConv2).
 
 **Prepackaged releases on the releases page will include these prebuilt.**
