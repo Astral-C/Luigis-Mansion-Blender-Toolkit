@@ -1,3 +1,4 @@
+import os
 import bpy
 import anm, binmdl, col, cmn, cmb, mdl, pth
 from bpy_extras.io_utils import ImportHelper, ExportHelper
@@ -58,6 +59,8 @@ class MansionBinExport(bpy.types.Operator, ExportHelper):
     )
 
     def execute(self, context):
+        if(os.path.exists(self.filepath)):
+            os.remove(self.filepath)
         binmdl.bin_model_export(self.filepath, self.Tristrips)
         return {'FINISHED'}
     
@@ -118,6 +121,8 @@ class MansionAnmExport(bpy.types.Operator, ExportHelper):
     )
 
     def execute(self, context):
+        if(os.path.exists(self.filepath)):
+            os.remove(self.filepath)
         anm.write_anim(self.filepath, self.Slope, self.Loop)
         return {'FINISHED'}
     
@@ -193,6 +198,8 @@ class MansionCmnExport(bpy.types.Operator, ExportHelper):
     )
 
     def execute(self, context):
+        if(os.path.exists(self.filepath)):
+            os.remove(self.filepath)
         if(cmn.save_anim(self.filepath)):
             return {'FINISHED'}
         else:
@@ -246,6 +253,8 @@ class MansionPthExport(bpy.types.Operator, ExportHelper):
     )
 
     def execute(self, context):
+        if(os.path.exists(self.filepath)):
+            os.remove(self.filepath)
         if(pth.save_anim(self.filepath)):
             return {'FINISHED'}
         else:
