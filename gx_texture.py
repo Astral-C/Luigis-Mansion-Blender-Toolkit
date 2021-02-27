@@ -13,21 +13,30 @@ class gx_texture():
 
     @staticmethod
     def cfrom_rgb5A3(color):
-        ua = (color >> 31)
         r = 0x00
         g = 0x00
         b = 0x00
         a = 0x00
-        if(ua == 1):
+        if(color & 0x8000 == 0x8000):
             a = 0xFF
-            r = 0x8 * (color & 0b11111)
-            g = 0x8 * ((color << 6) & 0b11111)
-            b = 0x8 * ((color << 11) & 0b11111)
+            r = (color >> 0x7C00) >> 10
+            g = (color & 0x3E0) >> 5
+            b = (color & 0x1F)
+
+            r = r << 3 | r >> 2
+            g = g << 3 | g >> 2
+            b = b << 3 | b >> 2
+
         else:
-            a = 0x20 * (color & 0b1)
-            r = 0x11 * (color & 0b0111)
-            g = 0x11 * (color & 0x00F)
-            b = 0x11 * (color & 0x000F)
+            a = (color & 0x7000) >> 12
+            r = (color & 0xF00) >> 8
+            g = (color & 0xF0) >> 4
+            b = (color & 0xF)
+
+            a = a << 5 | a << 2 | a >> 1
+            r = r << 4 | r
+            g = g << 4 | g
+            b = b << 4 | b
 
         return (r, g, b, a)
 
