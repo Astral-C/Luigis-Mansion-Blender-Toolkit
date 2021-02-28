@@ -53,15 +53,22 @@ class MansionBinExport(bpy.types.Operator, ExportHelper):
         maxlen=255,
     )
 
-    Tristrips: BoolProperty(
-        default=False,
+    compat_mode: BoolProperty(
+        default=True,
+        name="Console Compatible",
+        description="Export model as console compatible, disable for smaller models that only work in emulator."
+    )
 
+    use_tristrips: BoolProperty(
+        default=False,
+        name="Use Tristrips (EXPERIMENTAL)",
+        description="Use tristrip primitives. This is an experimental mode export mode."
     )
 
     def execute(self, context):
         if(os.path.exists(self.filepath)):
             os.remove(self.filepath)
-        binmdl.bin_model_export(self.filepath, self.Tristrips)
+        binmdl.bin_model_export(self.filepath, self.use_tristrips, self.compat_mode)
         return {'FINISHED'}
     
     def invoke(self, context, event):

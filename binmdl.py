@@ -46,6 +46,7 @@ class BinMaterialsSettingsPanel(bpy.types.Panel):
     bl_context = 'material'
 
     def draw(self, context):
+        self.layout.row().prop(bpy.context.material, "gx_img_type")
         self.layout.row().prop(bpy.context.material, "bin_wrap_mode_u")
         self.layout.row().prop(bpy.context.material, "bin_wrap_mode_v")
         self.layout.row().prop(bpy.context.material, "bin_shader_tint")
@@ -53,10 +54,17 @@ class BinMaterialsSettingsPanel(bpy.types.Panel):
         self.layout.row().prop(bpy.context.material, "bin_shader_unk2")
         self.layout.row().prop(bpy.context.material, "bin_shader_unk3")
 
+wrap_modes = ['CLAMP', 'REPEAT', 'MIRROR']
 bin_mat_wrap_modes = [
     ("CLAMP", "Clamp", "", 0),
     ("REPEAT", "Repeat", "", 1),
     ("MIRROR", "Mirror", "", 2),
+]
+
+supported_tex_types = [
+    ("CMPR", "CMPR", "", 0),
+    ("RGB565", "RGB565", "", 1),
+    ("RGB5A3", "RGB5A3", "", 2),
 ]
 
 bpy.utils.register_class(GraphNodeSettingsPanel) #must be registered here
@@ -70,6 +78,7 @@ bpy.types.Material.bin_shader_tint = bpy.props.FloatVectorProperty(name="Tint",s
 bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=0,max=255)
 bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=0,max=255)
 bpy.types.Material.bin_shader_unk3 = bpy.props.IntProperty(name="Mat Unknown 3",min=0,max=255)
+bpy.types.Material.gx_img_type = bpy.props.EnumProperty(name="GX Image Type", items=supported_tex_types)
 
 #actual model loading stuff
 
@@ -206,11 +215,12 @@ class bin_model_import():
             mat_tree = mat.node_tree
             texIndex = stream.readInt16()
             stream.readUInt16()
-            mat.bin_wrap_mode_u = ['CLAMP', 'REPEAT', 'MIRROR'][stream.readUInt8()]
-            mat.bin_wrap_mode_v = ['CLAMP', 'REPEAT', 'MIRROR'][stream.readUInt8()]
+            mat.bin_wrap_mode_u = wrap_modes[stream.readUInt8()]
+            mat.bin_wrap_mode_v = wrap_modes[stream.readUInt8()]
 
             texture_node = mat_tree.nodes.new("ShaderNodeTexImage")
-            texture_node.image = self.readTexture(stream, texIndex)
+            texture_node.image = self.readTexture(stream, texIndex, mat)
+
             bsdf = mat_tree.nodes.get('Principled BSDF')
             if(not isBump):
                 mat_tree.links.new(texture_node.outputs[0], bsdf.inputs[0])
@@ -223,20 +233,22 @@ class bin_model_import():
                 pass
             
 
-    def readTexture(self, stream, index):
+    def readTexture(self, stream, index, mat):
         stream.seek(self.offsets[0] + (0xC * index))
         width = stream.readUInt16()
         height = stream.readUInt16()
         format = stream.readInt8()
-        print(hex(format))
         stream.readUInt8()
         stream.readUInt16()
         offset = stream.readUInt32()
         if(format == 0x0E):
+            mat.gx_img_type = 'CMPR'
             return gx_texture.bi_from_cmpr(stream, width, height, self.offsets[0] + offset, index)
         elif(format == 0x05):
+            mat.gx_img_type = 'RGB5A3'
             return gx_texture.bi_from_rgb5A3(stream, width, height, self.offsets[0] + offset, index)      
         elif(format == 0x04):
+            mat.gx_img_type = 'RGB565'
             return gx_texture.bi_from_rgb565(stream, width, height, self.offsets[0] + offset, index)       
     
     def readBatch(self, stream, index, total_verts = 0):
@@ -283,7 +295,7 @@ class bin_model_import():
         face_data = [] # vertex indicies to use in this primitive
         gxprimitives = [] #stores raw element buffers
         
-        print(f'Reading primitve with attribs {attributes}')
+        #print(f'Reading primitve with attribs {attributes}')
         current_primitive = stream.readUInt8()
         # read the primitives
         while(GXPrimitiveTypes.valid_opcode(current_primitive) and stream.fhandle.tell() < size):
@@ -303,8 +315,7 @@ class bin_model_import():
         return (face_data, local_texcoords)
 
 class bin_model_export():
-    def __init__(self, pth, use_tristrips):
-        #Uses fixed name to get root of bin model, first child is the root of the scene graph
+    def __init__(self, pth, use_tristrips, compat):
         root = bpy.context.selected_objects[0]
         
         self.meshes_used = []
@@ -321,14 +332,12 @@ class bin_model_export():
 
         self.generate_scenegraph(root, graph_nodes, 0, -1, -1)
 
-        print(graph_nodes)
-
         offsets = [0 for x in range(21)]
         out = bStream(path=pth)
         out.writeUInt8(0x02)
         
         if(len(root.name) < 11):
-            out.writeString(root.name + (" " * (11 - len(root.name)))) #generic name lmao
+            out.writeString(root.name + (" " * (11 - len(root.name))))
         else:
             out.writeString(root.name[0:11])
 
@@ -336,11 +345,13 @@ class bin_model_export():
 
         offsets[0] = out.tell()
         self.textures.writeTextures(out)
-        out.padTo32(out.tell())
+        if(compat): #pad after textures
+            out.padTo32(out.tell())
 
         offsets[1] = out.tell()
         self.textures.writeMaterials(out)
-        out.padTo32(out.tell())
+        if(compat): # pad after materials
+            out.padTo32(out.tell())
 
         offsets[2] = out.tell()
         for vertex in self.batches.mesh_data['vertex']:
@@ -348,28 +359,37 @@ class bin_model_export():
             out.writeInt16(int(vertex[2]))
             out.writeInt16(int(-vertex[1]))
         
-        out.padTo32(out.tell())
+        if(compat): # pad after vertices
+            out.padTo32(out.tell())
+    
         offsets[3] = out.tell()
         for normal in self.batches.mesh_data['normal']:
             out.writeFloat(-normal[0])
             out.writeFloat(-normal[1])
             out.writeFloat(-normal[2])
 
-        out.padTo32(out.tell())
+        if(compat): #pad after normals
+            out.padTo32(out.tell())
+
         offsets[6] = out.tell()
         for uv in self.batches.mesh_data['uv']:
             out.writeFloat(uv[0])
             out.writeFloat(-uv[1])
 
-        out.padTo32(out.tell())
+        if(compat): #pad after uvs
+            out.padTo32(out.tell())
+
 
         offsets[10] = out.tell()
         self.shaders.writeShaders(out)
-        out.padTo32(out.tell())
+        if(compat): #pad after shaders
+            out.padTo32(out.tell())
+
 
         offsets[11] = out.tell()
         self.batches.write(out)
-        out.padTo32(out.tell())
+        if(compat): #pad after batches
+            out.padTo32(out.tell())
 
         offsets[12] = out.tell()
 
@@ -381,7 +401,8 @@ class bin_model_export():
                 out.writeInt16(part[1])
                 out.writeInt16(part[0])
         
-        out.padTo32(out.tell())
+        if(compat): #Pad after scenegraph
+            out.padTo32(out.tell())
                 
         out.seek(offsets[12])
         for node in graph_nodes:
@@ -423,7 +444,8 @@ class bin_model_export():
                 bpy.context.view_layer.objects.active = child
                 bpy.ops.object.modifier_apply(modifier="TRIANGULATE")
                 self.meshes_used.append(child)
-                self.materials_used.append(child.active_material)
+                if(child.active_material not in self.materials_used):
+                    self.materials_used.append(child.active_material)
             if(child.type == 'EMPTY'):
                 self.get_used_meshes(child)
 

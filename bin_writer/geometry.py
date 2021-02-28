@@ -89,7 +89,7 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, mesh_data):
 
             triangles.append(tuple(ltri))
 
-        strips = stripify(triangles, True)
+        strips = stripify(triangles)
         for strip in strips:
             buffer.writeUInt8(0x98)
             buffer.writeUInt16(len(strip))
