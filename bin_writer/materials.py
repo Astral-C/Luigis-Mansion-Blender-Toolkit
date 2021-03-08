@@ -30,9 +30,6 @@ def cmpr_from_blender(image):
     img_out = bStream()
 
     #calculate block count to ensure that we dont get any garbage data
-    block_w = ((image.size[0] + 3) & (-4)) / 4
-    block_h = ((image.size[1] + 3) & (-4)) / 4
-    block_count = int(block_w * block_h) * 8
 
     for ty in range(0, image.size[1], 8):
         for tx in range(0, image.size[0], 8):
@@ -41,7 +38,7 @@ def cmpr_from_blender(image):
                     img_out.write(compress_block(image, img_data, tx, ty, bx, by))
 
     img_out.seek(0)
-    return (0x0E, image.size[0], image.size[1], img_out.fhandle.read(block_count))
+    return (0x0E, image.size[0], image.size[1], img_out.fhandle.read())
 
 def rgb565_from_blender(image):
     img_data = [[image.pixels[(y * image.size[0] + x)*4 : ((y * image.size[0] + x) * 4) + 4] for x in range(image.size[0])] for y in range(image.size[1])]
@@ -80,11 +77,11 @@ def rgb5A3_from_blender(image):
     return (0x05, image.size[0], image.size[1], img_out.fhandle.read())
 
 class Material():
-    wrap_modes = {'CLAMP':0,'REPEAT':1,'MIRROR':2}
+    wrap_modes = ['CLAMP','REPEAT','MIRROR']
     def __init__(self, texindex, material):
         self.texture_index = texindex
-        self.u = self.wrap_modes[material.bin_wrap_mode_u]
-        self.v = self.wrap_modes[material.bin_wrap_mode_v]
+        self.u = self.wrap_modes.index(material.bin_wrap_mode_u)
+        self.v = self.wrap_modes.index(material.bin_wrap_mode_v)
 
     def write(self, stream):
         stream.writeInt16(self.texture_index)
@@ -176,7 +173,7 @@ class TextureManager():
 
                 if(tex == None):
                     continue # What the fuck?
-                
+
                 if(material.gx_img_type == 'CMPR'):
                     self.textures.append(cmpr_from_blender(tex))
                 elif(material.gx_img_type == 'RGB565'):

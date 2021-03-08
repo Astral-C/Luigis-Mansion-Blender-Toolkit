@@ -72,11 +72,11 @@ bpy.types.Object.batch_use_normals = bpy.props.BoolProperty(name="Use Normals", 
 bpy.types.Object.batch_use_positions = bpy.props.IntProperty(name="Use Positions",min=0,max=255,default=2)
 bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
 bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
-bpy.types.Material.bin_wrap_mode_u = bpy.props.EnumProperty(name="Wrap U",items=bin_mat_wrap_modes)
-bpy.types.Material.bin_wrap_mode_v = bpy.props.EnumProperty(name="Wrap V",items=bin_mat_wrap_modes)
+bpy.types.Material.bin_wrap_mode_u = bpy.props.EnumProperty(name="Wrap U",items=bin_mat_wrap_modes,default="REPEAT")
+bpy.types.Material.bin_wrap_mode_v = bpy.props.EnumProperty(name="Wrap V",items=bin_mat_wrap_modes,default="REPEAT")
 bpy.types.Material.bin_shader_tint = bpy.props.FloatVectorProperty(name="Tint",subtype="COLOR",size=4,min=0.0,max=1.0,default=(1.0, 1.0, 1.0, 1.0))
-bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=0,max=255)
-bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=0,max=255)
+bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=1,max=255)
+bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=1,max=255)
 bpy.types.Material.bin_shader_unk3 = bpy.props.IntProperty(name="Mat Unknown 3",min=0,max=255)
 bpy.types.Material.gx_img_type = bpy.props.EnumProperty(name="GX Image Type", items=supported_tex_types)
 
@@ -148,12 +148,21 @@ class bin_model_import():
             material = self.materials[part[0]]
             
             mesh = bpy.data.meshes.new('Batch_{0}'.format(part[1]))
+
             mesh.from_pydata(self.verts, [], batch[0])
+
+            # Because of blender's weird set up using normals from the original model is more trouble than its worth
+            # but a bunch of people complained about models being blocky because they didnt know to enable smooth shading
+            # so no i've done it for them.
+            
+            mesh.use_auto_smooth = True
+            mesh.create_normals_split()
+            mesh.normals_split_custom_set_from_vertices([(0,0,0) for v in self.verts])
 
             bm = bmesh.new()
             bm.from_mesh(mesh)
             uv = bm.loops.layers.uv.new("UVMap")
-
+            
             texcoord_tris = list(chain.from_iterable(batch[1]))
             for face in bm.faces:
                 for loop in face.loops:
@@ -217,6 +226,7 @@ class bin_model_import():
             stream.readUInt16()
             mat.bin_wrap_mode_u = wrap_modes[stream.readUInt8()]
             mat.bin_wrap_mode_v = wrap_modes[stream.readUInt8()]
+            print(f"{mat.name}: {mat.bin_wrap_mode_u}, {mat.bin_wrap_mode_v}")
 
             texture_node = mat_tree.nodes.new("ShaderNodeTexImage")
             texture_node.image = self.readTexture(stream, texIndex, mat)
@@ -443,7 +453,8 @@ class bin_model_export():
             if(child.type == 'MESH'):
                 bpy.context.view_layer.objects.active = child
                 bpy.ops.object.modifier_apply(modifier="TRIANGULATE")
-                self.meshes_used.append(child)
+                if(child not in self.meshes_used):
+                    self.meshes_used.append(child)
                 if(child.active_material not in self.materials_used):
                     self.materials_used.append(child.active_material)
             if(child.type == 'EMPTY'):

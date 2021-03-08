@@ -46,60 +46,42 @@ def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
             buffer.writeUInt16(uvi)
 
 def GenerateTristripPrimitives(mesh, buffer, nbt, mesh_data):
-    try:
-        from pyffi.utils.tristrip import stripify
-        normal_offset = 0
-        uv_map = mesh.uv_layers.active.data
-        triangles = []
+    normal_offset = 0
+    uv_map = mesh.uv_layers.active.data
+    for polygon in mesh.polygons:
+        buffer.writeUInt8(0x98)
+        buffer.writeUInt16(len(polygon.loop_indices))
 
-        uv_tweak = {}
+        for l in polygon.loop_indices:
+            loop = mesh.loops[l]
 
-        for polygon in mesh.polygons:
-            ltri = []
-            for idx in range(3):
-                loop = mesh.loops[polygon.loop_indices[idx]]
+            uv = uv_map[l].uv
+            vertex = mesh.vertices[loop.vertex_index].co
+            normal = mesh.vertices[loop.vertex_index].normal
+            vi = -1
+            uvi = -1
+            noi = -1
+            if(uv in mesh_data['uv']):
+                uvi = mesh_data['uv'].index(uv)
+            else:
+                uvi = len(mesh_data['uv'])
+                mesh_data['uv'].append(uv)
 
-                uv = uv_map[polygon.loop_indices[idx]].uv
-                vertex = mesh.vertices[loop.vertex_index].co
-                normal = mesh.vertices[loop.vertex_index].normal
-                vi = -1
-                uvi = -1
-                noi = -1
+            if(vertex in mesh_data['vertex']):
+                vi = mesh_data['vertex'].index(vertex)
+            else:
+                vi = len(mesh_data['vertex'])
+                mesh_data['vertex'].append(vertex)
 
-                if(vertex in mesh_data['vertex']):
-                    vi = mesh_data['vertex'].index(vertex)
-                else:
-                    vi = len(mesh_data['vertex'])
-                    mesh_data['vertex'].append(vertex)
+            if(normal in mesh_data['normal']):
+                noi = mesh_data['normal'].index(normal)
+            else:
+                noi = len(mesh_data['normal'])
+                mesh_data['normal'].append(normal)
 
-                if(vi in mesh_data['uv']):
-                    #terrible, very very gross
-                    uv_tweak[vi] = mesh_data['uv'].index(uv)
-                else:
-                    mesh_data['uv'].append(uv)
-                    uv_tweak[vi] = mesh_data['uv'].index(uv)
-
-                if(normal in mesh_data['normal']):
-                    noi = mesh_data['normal'].index(normal)
-                else:
-                    noi = len(mesh_data['normal'])
-                    mesh_data['normal'].append(normal)
-
-                ltri.append(vi)
-
-            triangles.append(tuple(ltri))
-
-        strips = stripify(triangles)
-        for strip in strips:
-            buffer.writeUInt8(0x98)
-            buffer.writeUInt16(len(strip))
-            for v in strip:
-                buffer.writeUInt16(v)
-                buffer.writeUInt16(v)
-                # still very very gross
-                buffer.writeUInt16(uv_tweak[v])
-    except:
-        print("Tristrips require PYFFI")
+            buffer.writeUInt16(vi) # vertex
+            buffer.writeUInt16(noi) # normal
+            buffer.writeUInt16(uvi)
 
 class BatchManager():
     def __init__(self, meshes, use_tristrips, use_bump=False):
