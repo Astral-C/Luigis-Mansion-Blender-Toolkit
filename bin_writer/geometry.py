@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from bStream import *
+import time
 
 class GXVertex():
     def __init__(self, vertex, normal, uv):
@@ -9,6 +10,7 @@ class GXVertex():
         self.uv = uv
 
 def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
+    start = time.time()
     normal_offset = 0
     uv_map = mesh.uv_layers.active.data
     for polygon in mesh.polygons:
@@ -44,6 +46,9 @@ def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
             buffer.writeUInt16(vi) # vertex
             buffer.writeUInt16(noi) # normal
             buffer.writeUInt16(uvi)
+
+    end = time.time()
+    print(f"Generated batch for {mesh.name} in {end-start} seconds")
 
 def GenerateTristripPrimitives(mesh, buffer, nbt, mesh_data):
     normal_offset = 0

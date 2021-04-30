@@ -1,6 +1,6 @@
 import os
 import bpy
-import anm, binmdl, col, cmn, cmb, mdl, pth
+import anm, binmdl, col, cmn, mdl, pth
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty, FloatProperty
 from bpy.types import Operator
@@ -123,14 +123,10 @@ class MansionAnmExport(bpy.types.Operator, ExportHelper):
         default=False
     )
 
-    Slope = FloatProperty(
-        default=-1.0
-    )
-
     def execute(self, context):
         if(os.path.exists(self.filepath)):
             os.remove(self.filepath)
-        anm.write_anim(self.filepath, self.Slope, self.Loop)
+        anm.write_anim(self.filepath, self.Loop)
         return {'FINISHED'}
     
     def invoke(self, context, event):

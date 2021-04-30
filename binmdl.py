@@ -23,18 +23,39 @@ class GraphNodeSettingsPanel(bpy.types.Panel):
     bl_context = 'object'
 
     def draw(self, context):
-        row = self.layout.row()
         if(bpy.context.active_object.type == 'EMPTY'):
-            row.prop(bpy.context.active_object, "bin_render_flags")
+            box = self.layout.box()
+            box.label(text="Render Settings", icon="MOD_WIREFRAME")
 
-            self.layout.operator_context = 'INVOKE_DEFAULT' #'INVOKE_AREA'
-            self.layout.operator("import_anim.mansionanm", text="Import ANM")
-            self.layout.operator("export_anim.mansionanm", text="Export ANM")
-            self.layout.operator("export_model.mansionbin", text="Export Bin")
+            box.row().prop(bpy.context.active_object, "bin_render_cast_shadow", toggle=True)
+
+            row = box.row()
+            row.prop(bpy.context.active_object, "bin_render_fourthwall", toggle=True)
+            row.prop(bpy.context.active_object, "bin_render_ceiling", toggle=True)
+
+            row = box.row()
+            row.prop(bpy.context.active_object, "bin_render_transparent", toggle=True)
+            row.prop(bpy.context.active_object, "bin_render_fullbright", toggle=True)
+
+            row = box.row()
+            row.prop(bpy.context.active_object, "bin_render_rf16", toggle=True)
+            row.prop(bpy.context.active_object, "bin_render_rf32", toggle=True)
+
+
+
+            box = self.layout.box()
+            box.label(text="Node Import/Export", icon="EXPORT")
+            box.operator_context = 'INVOKE_DEFAULT' #'INVOKE_AREA'
+            box.operator("import_anim.mansionanm", text="Import ANM")
+            box.operator("export_anim.mansionanm", text="Export ANM")
+            box.operator("export_model.mansionbin", text="Export Bin")
             
         if(bpy.context.active_object.type == 'MESH'):
-            self.layout.row().prop(bpy.context.active_object, "batch_use_normals")
-            self.layout.row().prop(bpy.context.active_object, "batch_use_positions")
+            box = self.layout.box()
+            box.label(text="Mesh Settings", icon="MOD_WIREFRAME")
+            row = box.row()
+            row.prop(bpy.context.active_object, "batch_use_normals", toggle=True)
+            row.prop(bpy.context.active_object, "batch_use_positions")
 
 
 
@@ -46,13 +67,29 @@ class BinMaterialsSettingsPanel(bpy.types.Panel):
     bl_context = 'material'
 
     def draw(self, context):
-        self.layout.row().prop(bpy.context.material, "gx_img_type")
-        self.layout.row().prop(bpy.context.material, "bin_wrap_mode_u")
-        self.layout.row().prop(bpy.context.material, "bin_wrap_mode_v")
-        self.layout.row().prop(bpy.context.material, "bin_shader_tint")
-        self.layout.row().prop(bpy.context.material, "bin_shader_unk1")
-        self.layout.row().prop(bpy.context.material, "bin_shader_unk2")
-        self.layout.row().prop(bpy.context.material, "bin_shader_unk3")
+        box = self.layout.box()
+        box.label(text="Texture Format", icon="TEXTURE")
+        box.row().prop(bpy.context.material, "gx_img_type", text='')
+
+        box = self.layout.box()
+        box.label(text="Wrap Modes", icon='UV')
+        row = box.row()
+        row.label(text="U")
+        row.prop(bpy.context.material, "bin_wrap_mode_u", expand=True)
+        row = box.row()
+        row.label(text="V")
+        row.prop(bpy.context.material, "bin_wrap_mode_v", expand=True)
+
+        box = self.layout.box()
+        box.label(text="Tint Settings", icon="COLOR")
+        box.row().prop(bpy.context.material, "bin_shader_tint", text='')
+
+        box = self.layout.box()
+        box.label(text="Unknown Settings", icon="QUESTION")
+        row = box.row()
+        row.prop(bpy.context.material, "bin_shader_unk1")
+        row.prop(bpy.context.material, "bin_shader_unk2")
+        row.prop(bpy.context.material, "bin_shader_unk3")
 
 wrap_modes = ['CLAMP', 'REPEAT', 'MIRROR']
 bin_mat_wrap_modes = [
@@ -70,15 +107,20 @@ supported_tex_types = [
 bpy.utils.register_class(GraphNodeSettingsPanel) #must be registered here
 bpy.types.Object.batch_use_normals = bpy.props.BoolProperty(name="Use Normals", default=True)
 bpy.types.Object.batch_use_positions = bpy.props.IntProperty(name="Use Positions",min=0,max=255,default=2)
-bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
-bpy.types.Object.bin_render_flags = bpy.props.IntProperty(name="Render Flags",min=0,max=255)
+bpy.types.Object.bin_render_cast_shadow = bpy.props.BoolProperty(name="Cast Shadow", default=True)
+bpy.types.Object.bin_render_fourthwall = bpy.props.BoolProperty(name="Fourth Wall", default=False)
+bpy.types.Object.bin_render_transparent = bpy.props.BoolProperty(name="Transparent", default=False)
+bpy.types.Object.bin_render_rf16 = bpy.props.BoolProperty(name="RF16", default=False)
+bpy.types.Object.bin_render_rf32 = bpy.props.BoolProperty(name="RF32", default=False)
+bpy.types.Object.bin_render_fullbright = bpy.props.BoolProperty(name="Full Bright", default=False)
+bpy.types.Object.bin_render_ceiling = bpy.props.BoolProperty(name="Ceiling", default=False)
 bpy.types.Material.bin_wrap_mode_u = bpy.props.EnumProperty(name="Wrap U",items=bin_mat_wrap_modes,default="REPEAT")
 bpy.types.Material.bin_wrap_mode_v = bpy.props.EnumProperty(name="Wrap V",items=bin_mat_wrap_modes,default="REPEAT")
 bpy.types.Material.bin_shader_tint = bpy.props.FloatVectorProperty(name="Tint",subtype="COLOR",size=4,min=0.0,max=1.0,default=(1.0, 1.0, 1.0, 1.0))
-bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=1,max=255,default=1)
-bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=1,max=255,default=1)
-bpy.types.Material.bin_shader_unk3 = bpy.props.IntProperty(name="Mat Unknown 3",min=0,max=255,default=0)
-bpy.types.Material.gx_img_type = bpy.props.EnumProperty(name="GX Image Type", items=supported_tex_types)
+bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=-1,max=255,default=1)
+bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=-1,max=255,default=1)
+bpy.types.Material.bin_shader_unk3 = bpy.props.IntProperty(name="Mat Unknown 3",min=-1,max=255,default=0)
+bpy.types.Material.gx_img_type = bpy.props.EnumProperty(name="Texture Format", items=supported_tex_types)
 
 #actual model loading stuff
 
@@ -89,7 +131,6 @@ class bin_model_import():
         stream.seek(1)
         name = stream.readString(len=11)
         self.offsets = [stream.readUInt32() for offset in range(21)]
-        print(self.offsets)
 
         stream.seek(self.offsets[2])
         
@@ -135,7 +176,17 @@ class bin_model_import():
         parts = [[stream.readInt16(), stream.readInt16()] for x in range(part_count)]
         
         cur_obj = bpy.data.objects.new('Graph_Obj{0}'.format(index) if name == None else name, None)
-        cur_obj.bin_render_flags = render_flags 
+        #cur_obj.bin_render_flags = render_flags 
+
+
+        cur_obj.bin_render_cast_shadow = (render_flags & (1 << 1)) != 0 
+        cur_obj.bin_render_fourthwall = (render_flags & (1 << 2)) != 0
+        cur_obj.bin_render_transparent = (render_flags & (1 << 3)) != 0 
+        cur_obj.bin_render_rf16 = (render_flags & (1 << 4)) != 0
+        cur_obj.bin_render_rf32 = (render_flags & (1 << 5)) != 0
+        cur_obj.bin_render_fullbright = (render_flags & (1 << 6)) != 0
+        cur_obj.bin_render_ceiling = (render_flags & (1 << 7)) != 0
+
         cur_obj.parent = root
         cur_obj.location = pos
         cur_obj.rotation_euler = (math.degrees(rot[0] * 0.001523), -math.degrees(rot[2] * 0.001523), math.degrees(rot[1] * 0.001523))
@@ -153,7 +204,7 @@ class bin_model_import():
 
             # Because of blender's weird set up using normals from the original model is more trouble than its worth
             # but a bunch of people complained about models being blocky because they didnt know to enable smooth shading
-            # so no i've done it for them.
+            # so now i've done it for them.
             
             mesh.use_auto_smooth = True
             mesh.create_normals_split()
@@ -341,6 +392,7 @@ class bin_model_export():
         graph_nodes = []
 
         self.generate_scenegraph(root, graph_nodes, 0, -1, -1)
+        print(graph_nodes)
 
         offsets = [0 for x in range(21)]
         out = bStream(path=pth)
@@ -374,9 +426,9 @@ class bin_model_export():
     
         offsets[3] = out.tell()
         for normal in self.batches.mesh_data['normal']:
-            out.writeFloat(-normal[0])
-            out.writeFloat(-normal[1])
-            out.writeFloat(-normal[2])
+            out.writeFloat(normal[0])
+            out.writeFloat(normal[1])
+            out.writeFloat(normal[2])
 
         if(compat): #pad after normals
             out.padTo32(out.tell())
@@ -469,14 +521,23 @@ class bin_model_export():
             'child_index' : -1,
             'next_index' : -1,
             'prev_index' : prev_index,
-            'render_flags' : obj.bin_render_flags,
+            'render_flags' : 0,
             'scale' : [obj.scale[0], obj.scale[1], obj.scale[2]],
-            'rotation' : [0, 0, 0], #math.radians(obj.rotation_euler[0])/0.001523, math.radians(obj.rotation_euler[2])/0.001523, -math.radians(obj.rotation_euler[1])/0.001523],
+            'rotation' : [math.radians(obj.rotation_euler[0])/0.001523, math.radians(obj.rotation_euler[2])/0.001523, -math.radians(obj.rotation_euler[1])/0.001523],
             'position' : [obj.location[0], obj.location[2], -obj.location[1]],
             'part_count': 0,
             'parts':[],
             'part_offset': 0
         }
+
+
+        node['render_flags'] |= (obj.bin_render_cast_shadow << 1) 
+        node['render_flags'] |= (obj.bin_render_fourthwall << 2)
+        node['render_flags'] |= (obj.bin_render_transparent << 3) 
+        node['render_flags'] |= (obj.bin_render_rf16 << 4)
+        node['render_flags'] |= (obj.bin_render_rf32 << 5)
+        node['render_flags'] |= (obj.bin_render_fullbright << 6)
+        node['render_flags'] |= (obj.bin_render_ceiling << 7)
 
         scenegraph.append(node)
 

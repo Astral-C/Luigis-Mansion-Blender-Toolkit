@@ -210,12 +210,13 @@ def ANMFromFCurves(curve, group, radians=False):
     else:
         for keyframe in curve.keyframe_points:
 
-            inslope = (keyframe.co[1] - keyframe.handle_left[1]) / (keyframe.co[0] - keyframe.handle_left[0])
-            outslope = (keyframe.co[1] - keyframe.handle_right[1]) / (keyframe.co[0] - keyframe.handle_right[0])
-            #print("Inslope {}\nOutslope {}".format(inslope, outslope))
-            group.extend([keyframe.co[0], keyframe.co[1] if not radians else (math.radians(keyframe.co[1]) / 0.0001533981), inslope, outslope])
+            #NOTE: Slope is not currently supported due to unknowns in calculating these values. If you would like to use them anyway, you must edit this script, simply include them in  the group.extend list
+
+            #inslope = (keyframe.co[1] - keyframe.handle_right[1]) / (keyframe.co[0] - keyframe.handle_right[0])
+            #outslope =(keyframe.co[1] - keyframe.handle_left[1]) / (keyframe.co[0] - keyframe.handle_left[0])
+            group.extend([keyframe.co[0], keyframe.co[1] if not radians else (math.radians(keyframe.co[1]) / 0.0001533981), 0])
     
-        return {'KeyCount':len(curve.keyframe_points), 'BeginIndex':bi, 'Flags': 0x80}
+        return {'KeyCount':len(curve.keyframe_points), 'BeginIndex':bi, 'Flags': 0x00}
 
 
 def ANMGenNodes(node, stream, s, r, t, ng):

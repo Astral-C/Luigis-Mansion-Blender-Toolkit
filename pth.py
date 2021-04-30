@@ -123,7 +123,7 @@ def PTHWriteGroupData(stream, curve, data_offset, dummy=None, invert=False):
     for keyframe in curve.keyframe_points:
         stream.writeFloat(keyframe.co[0])
         stream.writeFloat(keyframe.co[1] if not invert else -keyframe.co[1])
-        stream.writeFloat(1.0)
+        stream.writeFloat((keyframe.co[1] - keyframe.handle_right[1]) / (keyframe.co[0] - keyframe.handle_right[0]))
 
     return {'KeyCount': len(curve.keyframe_points), 'BeginIndex':begin_index, 'ElementCount':3}
 
