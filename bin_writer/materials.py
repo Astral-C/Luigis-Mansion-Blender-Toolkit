@@ -104,12 +104,30 @@ class Material():
         self.texture_index = texindex
         self.u = self.wrap_modes.index(material.bin_wrap_mode_u)
         self.v = self.wrap_modes.index(material.bin_wrap_mode_v)
+        self.mat = material
 
     def write(self, stream):
         stream.writeInt16(self.texture_index)
         stream.writeInt16(-1)
         stream.writeUInt8(self.u)
         stream.writeUInt8(self.v)
+        flags = 0
+        flags |= (self.mat.bin_shader_sampler_bitflag_1 << 1)
+        flags |= (self.mat.bin_shader_sampler_bitflag_2 << 2)
+        flags |= (self.mat.bin_shader_sampler_bitflag_3 << 3)
+        flags |= (self.mat.bin_shader_sampler_bitflag_4 << 4)
+        flags |= (self.mat.bin_shader_sampler_bitflag_5 << 5)
+        flags |= (self.mat.bin_shader_sampler_bitflag_6 << 6)
+        flags |= (self.mat.bin_shader_sampler_bitflag_7 << 7)
+        flags |= (self.mat.bin_shader_sampler_bitflag_8 << 8)
+        flags |= (self.mat.bin_shader_sampler_bitflag_9 << 9)
+        flags |= (self.mat.bin_shader_sampler_bitflag_10 << 10)
+        flags |= (self.mat.bin_shader_sampler_bitflag_11 << 11)
+        flags |= (self.mat.bin_shader_sampler_bitflag_12 << 12)
+        flags |= (self.mat.bin_shader_sampler_bitflag_13 << 13)
+        flags |= (self.mat.bin_shader_sampler_bitflag_14 << 14)
+        flags |= (self.mat.bin_shader_sampler_bitflag_15 << 15)
+        flags |= (self.mat.bin_shader_sampler_bitflag_16 << 16)
         stream.writeUInt16(0)
         stream.pad(12)
 

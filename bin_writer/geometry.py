@@ -2,14 +2,11 @@ import math
 import numpy as np
 from bStream import *
 import time
+#from triangle_strip import find_strip
+from pyffi.tristrip import stripify, GXVertex
+from copy import deepcopy
 
-class GXVertex():
-    def __init__(self, vertex, normal, uv):
-        self.vertex = vertex
-        self.normal = normal
-        self.uv = uv
-
-def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
+def GeneratePrimitives(mesh, buffer, nbt, nenabled, mesh_data):
     start = time.time()
     normal_offset = 0
     uv_map = mesh.uv_layers.active.data
@@ -22,6 +19,7 @@ def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
             normal = mesh.vertices[loop.vertex_index].normal
+            print('vertex normal at is :', normal)
             vi = -1
             uvi = -1
             noi = -1
@@ -37,35 +35,41 @@ def GeneratePrimitives(mesh, buffer, nbt, mesh_data):
                 vi = len(mesh_data['vertex'])
                 mesh_data['vertex'].append(vertex)
 
-            if(normal in mesh_data['normal']):
-                noi = mesh_data['normal'].index(normal)
-            else:
-                noi = len(mesh_data['normal'])
-                mesh_data['normal'].append(normal)
+            if (nenabled):
+                if(normal in mesh_data['normal']):
+                    noi = mesh_data['normal'].index(normal)
+                else:
+                    noi = len(mesh_data['normal'])
+                    mesh_data['normal'].append(normal)
 
             buffer.writeUInt16(vi) # vertex
-            buffer.writeUInt16(noi) # normal
+            if(nenabled):
+                buffer.writeUInt16(noi) # normal
             buffer.writeUInt16(uvi)
 
     end = time.time()
     print(f"Generated batch for {mesh.name} in {end-start} seconds")
 
-def GenerateTristripPrimitives(mesh, buffer, nbt, mesh_data):
+def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
     normal_offset = 0
     uv_map = mesh.uv_layers.active.data
+
+    #generate strip
+    
+    faces = []
+
     for polygon in mesh.polygons:
-        buffer.writeUInt8(0x98)
-        buffer.writeUInt16(len(polygon.loop_indices))
+        tri = []
+        for idx in range(3):
+            loop = mesh.loops[polygon.loop_indices[idx]]
 
-        for l in polygon.loop_indices:
-            loop = mesh.loops[l]
-
-            uv = uv_map[l].uv
+            uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
             normal = mesh.vertices[loop.vertex_index].normal
             vi = -1
             uvi = -1
             noi = -1
+
             if(uv in mesh_data['uv']):
                 uvi = mesh_data['uv'].index(uv)
             else:
@@ -79,14 +83,27 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, mesh_data):
                 mesh_data['vertex'].append(vertex)
 
             if(normal in mesh_data['normal']):
-                noi = mesh_data['normal'].index(normal)
+                    noi = mesh_data['normal'].index(normal)
             else:
                 noi = len(mesh_data['normal'])
                 mesh_data['normal'].append(normal)
 
-            buffer.writeUInt16(vi) # vertex
-            buffer.writeUInt16(noi) # normal
-            buffer.writeUInt16(uvi)
+            tri.append(GXVertex(vi, noi, uvi))
+        faces.append(tri)
+
+
+    print("Looking for strips...")
+    strips = stripify(faces)
+    print(f"Strip Data {strips}")
+
+    for strip in strips:
+        buffer.writeUInt8(0x98)
+        buffer.writeUInt16(len(strip))
+        for tri in strip:
+            buffer.writeUInt16(tri.vertex) # vertex
+            if(nenabled):
+                buffer.writeUInt16(tri.normal) # normal
+            buffer.writeUInt16(tri.uv)
 
 class BatchManager():
     def __init__(self, meshes, use_tristrips, use_bump=False):
@@ -140,16 +157,16 @@ class Batch():
     def __init__(self, mesh, nbt, mesh_data, use_normals, use_positions, use_tristrips):
 
         self.face_count = len(mesh.polygons) #Isnt used by the game so, not important really
-        self.attributes = (0 | 1 << 9 | 1 << 10 | 1 << 13)
+        self.attributes = (0 | 1 << 9 | (1 << 10 if use_normals else 0) | 1 << 13)
         self.primitives = bStream()
         self.useNBT = nbt
         self.use_normals = use_normals
         self.use_positions = use_positions
 
         if(use_tristrips):
-            GenerateTristripPrimitives(mesh, self.primitives, self.useNBT, mesh_data)
+            GenerateTristripPrimitives(mesh, self.primitives, self.useNBT, use_normals, mesh_data)
         else:
-            GeneratePrimitives(mesh, self.primitives, self.useNBT, mesh_data)
+            GeneratePrimitives(mesh, self.primitives, self.useNBT, use_normals, mesh_data)
         
         self.primitives.padTo32(self.primitives.tell())
         self.primitives.seek(0)

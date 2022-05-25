@@ -58,7 +58,6 @@ class GraphNodeSettingsPanel(bpy.types.Panel):
             row.prop(bpy.context.active_object, "batch_use_positions")
 
 
-
 class BinMaterialsSettingsPanel(bpy.types.Panel):
     bl_label = "Bin Material Settings"
     bl_idname = "MATERIAL_PT_BIN_SETTINGS"
@@ -91,6 +90,26 @@ class BinMaterialsSettingsPanel(bpy.types.Panel):
         row.prop(bpy.context.material, "bin_shader_unk2")
         row.prop(bpy.context.material, "bin_shader_unk3")
 
+        box = self.layout.box()
+        box.label(text="Unknown Bigflags", icon="QUESTION")
+        row = box.row()
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_1")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_2")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_3")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_4")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_5")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_6")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_7")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_8")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_9")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_10")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_11")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_12")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_13")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_14")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_15")
+        row.prop(bpy.context.material, "bin_shader_sampler_bitflag_16")
+
 wrap_modes = ['CLAMP', 'REPEAT', 'MIRROR']
 bin_mat_wrap_modes = [
     ("CLAMP", "Clamp", "", 0),
@@ -103,6 +122,7 @@ supported_tex_types = [
     ("RGB565", "RGB565", "", 1),
     ("RGB5A3", "RGB5A3", "", 2),
 ]
+
 
 bpy.utils.register_class(GraphNodeSettingsPanel) #must be registered here
 bpy.types.Object.batch_use_normals = bpy.props.BoolProperty(name="Use Normals", default=True)
@@ -117,9 +137,28 @@ bpy.types.Object.bin_render_ceiling = bpy.props.BoolProperty(name="Ceiling", def
 bpy.types.Material.bin_wrap_mode_u = bpy.props.EnumProperty(name="Wrap U",items=bin_mat_wrap_modes,default="REPEAT")
 bpy.types.Material.bin_wrap_mode_v = bpy.props.EnumProperty(name="Wrap V",items=bin_mat_wrap_modes,default="REPEAT")
 bpy.types.Material.bin_shader_tint = bpy.props.FloatVectorProperty(name="Tint",subtype="COLOR",size=4,min=0.0,max=1.0,default=(1.0, 1.0, 1.0, 1.0))
+
 bpy.types.Material.bin_shader_unk1 = bpy.props.IntProperty(name="Mat Unknown 1",min=-1,max=255,default=1)
 bpy.types.Material.bin_shader_unk2 = bpy.props.IntProperty(name="Mat Unknown 2",min=-1,max=255,default=1)
 bpy.types.Material.bin_shader_unk3 = bpy.props.IntProperty(name="Mat Unknown 3",min=-1,max=255,default=0)
+
+bpy.types.Material.bin_shader_sampler_bitflag_1 = bpy.props.BoolProperty(name="Unk 1", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_2 = bpy.props.BoolProperty(name="Unk 2", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_3 = bpy.props.BoolProperty(name="Unk 3", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_4 = bpy.props.BoolProperty(name="Unk 4", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_5 = bpy.props.BoolProperty(name="Unk 5", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_6 = bpy.props.BoolProperty(name="Unk 6", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_7 = bpy.props.BoolProperty(name="Unk 7", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_8 = bpy.props.BoolProperty(name="Unk 8", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_9 = bpy.props.BoolProperty(name="Unk 9", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_10 = bpy.props.BoolProperty(name="Unk 10", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_11 = bpy.props.BoolProperty(name="Unk 11", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_12 = bpy.props.BoolProperty(name="Unk 12", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_13 = bpy.props.BoolProperty(name="Unk 13", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_14 = bpy.props.BoolProperty(name="Unk 14", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_15 = bpy.props.BoolProperty(name="Unk 15", default=False)
+bpy.types.Material.bin_shader_sampler_bitflag_16 = bpy.props.BoolProperty(name="Unk 16", default=False)
+
 bpy.types.Material.gx_img_type = bpy.props.EnumProperty(name="Texture Format", items=supported_tex_types)
 
 #actual model loading stuff
@@ -134,7 +173,13 @@ class bin_model_import():
 
         stream.seek(self.offsets[2])
         
+        no = 4
         v_count = int((self.offsets[3] - self.offsets[2]) / 6) #0
+        while v_count <= 0:
+            v_count = int((self.offsets[no] - self.offsets[2]) / 6)
+            no += 1
+
+        n_count = int((self.offsets[6] - self.offsets[3]) / 12)
         tc_count = int((self.offsets[10] - self.offsets[6]) / 8)#/8
         shader_count = int((self.offsets[11] - self.offsets[10]) / 0x28)
 
@@ -142,6 +187,14 @@ class bin_model_import():
         for x in range(v_count):
             t = [stream.readInt16(), stream.readInt16(), stream.readInt16()]
             self.verts.append([t[0], -t[2], t[1]])
+
+        stream.seek(self.offsets[3])
+        self.normals = []
+        for x in range(n_count):
+            t = [stream.readFloat(), stream.readFloat(), stream.readFloat()]
+            self.normals.append([t[0], -t[2], t[1]])
+
+
 
         self.materials = [self.readShader(stream, x) for x in range(shader_count)]
         stream.seek(self.offsets[6])
@@ -200,15 +253,9 @@ class bin_model_import():
             
             mesh = bpy.data.meshes.new('Batch_{0}'.format(part[1]))
 
+
             mesh.from_pydata(self.verts, [], batch[0])
 
-            # Because of blender's weird set up using normals from the original model is more trouble than its worth
-            # but a bunch of people complained about models being blocky because they didnt know to enable smooth shading
-            # so now i've done it for them.
-            
-            mesh.use_auto_smooth = True
-            mesh.create_normals_split()
-            mesh.normals_split_custom_set_from_vertices([(0,0,0) for v in self.verts])
 
             bm = bmesh.new()
             bm.from_mesh(mesh)
@@ -227,6 +274,12 @@ class bin_model_import():
             mesh.materials.append(material)
             mesh.update()
             
+            # Because of blender's weird set up using normals from the original model is more trouble than its worth
+            # but a bunch of people complained about models being blocky because they didnt know to enable smooth shading
+            # so now i've done it for them.
+            
+            mesh.use_auto_smooth = True
+
             batch_obj = bpy.data.objects.new('Batch_{0}'.format(part[1]), mesh)
             batch_obj.batch_use_normals = batch[2]
             batch_obj.batch_use_positions = batch[3]
@@ -275,8 +328,23 @@ class bin_model_import():
             mat_tree = mat.node_tree
             texIndex = stream.readInt16()
             stream.readUInt16()
-            mat.bin_wrap_mode_u = wrap_modes[stream.readUInt8()]
-            mat.bin_wrap_mode_v = wrap_modes[stream.readUInt8()]
+            u = stream.readUInt8()
+            v = stream.readUInt8()
+
+            if(u == 0):
+                mat.bin_wrap_mode_u = 'CLAMP'
+            elif(u == 2):
+                mat.bin_wrap_mode_u = 'MIRROR'
+            else:
+                mat.bin_wrap_mode_u = 'REPEAT'
+
+            if(v == 0):
+                mat.bin_wrap_mode_v = 'CLAMP'
+            elif(v == 2):
+                mat.bin_wrap_mode_v = 'MIRROR'
+            else:
+                mat.bin_wrap_mode_v = 'REPEAT'
+
             print(f"{mat.name}: {mat.bin_wrap_mode_u}, {mat.bin_wrap_mode_v}")
 
             texture_node = mat_tree.nodes.new("ShaderNodeTexImage")
@@ -292,6 +360,24 @@ class bin_model_import():
                 mat_tree.links.new(texture_node.outputs[0], disp.inputs[0])
                 mat_tree.links.new(disp.outputs[0], mat_tree.nodes.get('Material Output').inputs[2])
                 pass
+
+            unknown_flags = stream.readUInt16()
+            mat.bin_shader_sampler_bitflag_1 = (unknown_flags & (1 << 1)) != 0 
+            mat.bin_shader_sampler_bitflag_2 = (unknown_flags & (1 << 2)) != 0 
+            mat.bin_shader_sampler_bitflag_3 = (unknown_flags & (1 << 3)) != 0 
+            mat.bin_shader_sampler_bitflag_4 = (unknown_flags & (1 << 4)) != 0 
+            mat.bin_shader_sampler_bitflag_5 = (unknown_flags & (1 << 5)) != 0 
+            mat.bin_shader_sampler_bitflag_6 = (unknown_flags & (1 << 6)) != 0 
+            mat.bin_shader_sampler_bitflag_7 = (unknown_flags & (1 << 7)) != 0 
+            mat.bin_shader_sampler_bitflag_8 = (unknown_flags & (1 << 8)) != 0 
+            mat.bin_shader_sampler_bitflag_9 = (unknown_flags & (1 << 9)) != 0 
+            mat.bin_shader_sampler_bitflag_10 = (unknown_flags & (1 << 10)) != 0 
+            mat.bin_shader_sampler_bitflag_11 = (unknown_flags & (1 << 11)) != 0 
+            mat.bin_shader_sampler_bitflag_12 = (unknown_flags & (1 << 12)) != 0 
+            mat.bin_shader_sampler_bitflag_13 = (unknown_flags & (1 << 13)) != 0
+            mat.bin_shader_sampler_bitflag_14 = (unknown_flags & (1 << 14)) != 0 
+            mat.bin_shader_sampler_bitflag_15 = (unknown_flags & (1 << 15)) != 0 
+            mat.bin_shader_sampler_bitflag_16 = (unknown_flags & (1 << 16)) != 0  
             
 
     def readTexture(self, stream, index, mat):
@@ -336,9 +422,9 @@ class bin_model_import():
         primitive_offset = stream.readUInt32()
         stream.seek(self.offsets[11]+primitive_offset)
         list_size += (primitive_offset+self.offsets[11])
-        face_data, texcoords = self.readPrimitives(stream, attribs, list_size, total_verts, nbt)
+        face_data, texcoords, normals = self.readPrimitives(stream, attribs, list_size, total_verts, nbt)
         
-        return (face_data, texcoords, use_normals, use_positions)
+        return (face_data, texcoords, use_normals, use_positions, normals)
     
     def readAttrib(self, stream, nbt, attrib):
         if(nbt and attrib == GXAttribute.Normal):
@@ -353,6 +439,7 @@ class bin_model_import():
 
     def readPrimitives(self, stream, attributes, size, total_verts, nbt):
         local_texcoords = [] 
+        local_normals = []
         face_data = [] # vertex indicies to use in this primitive
         gxprimitives = [] #stores raw element buffers
         
@@ -369,11 +456,16 @@ class bin_model_import():
         # create verts list
         for primitive in gxprimitives:
             v_index = attributes.index(GXAttribute.Position)
+            n_index = -1 if GXAttribute.Normal not in attributes else attributes.index(GXAttribute.Normal)
             t_index = (attributes.index(GXAttribute.Tex0) if GXAttribute.Tex0 in attributes else (attributes.index(GXAttribute.Tex1) if GXAttribute.Tex1 in attributes else 0))
             local_texcoords.extend(to_triangles_uv([vertex[t_index] for vertex in primitive[0]], primitive[1]))
             face_data.extend(to_triangles([vertex[v_index] for vertex in primitive[0]], primitive[1]))
+            if(n_index != -1):
+                local_normals.extend(to_triangles([vertex[n_index] for vertex in primitive[0]], primitive[1]))
+            elif(n_index == -1):
+                local_normals.extend([[0, 0, 0] for x in range(0, len(face_data) - len(local_normals))])
             
-        return (face_data, local_texcoords)
+        return (face_data, local_texcoords, local_normals)
 
 class bin_model_export():
     def __init__(self, pth, use_tristrips, compat):

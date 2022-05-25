@@ -15,12 +15,12 @@ def load_model(pth):
     unkown_data_offset = stream.readUInt32()
 
     stream.seek(vertex_offset) #vertex data always here
-    vertices = [[stream.readFloat(), stream.readFloat(), stream.readFloat()] for x in range(int((normal_offset - vertex_offset) / 0xC))]
-    
-    for v in vertices:
-        t = v[1]
-        v[1] = -v[2]
-        v[2] = t
+
+    vertices = []
+
+    for x in range(int((normal_offset - vertex_offset) / 0xC)):
+        v = [stream.readFloat(), stream.readFloat(), stream.readFloat()]
+        vertices.append([v[0], -v[2], v[1]])
 
     #stream.seek(normalOffset)
     #self.normals = [[stream.readFloat(), stream.readFloat(), stream.readFloat()] for x in range((triangleDataOffset - normalOffset) / 0xC)]
