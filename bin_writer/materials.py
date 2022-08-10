@@ -254,6 +254,7 @@ class TextureManager():
         for texture in self.textures:
             texture_offsets.append(data_section.tell())
             data_section.write(texture[3])
+            data_section.padTo32(data_section.tell())
 
         for x in range(0, len(texture_offsets)):
             header_section.write(struct.pack(">HHBBHI", self.textures[x][1], self.textures[x][2], self.textures[x][0], 0, 0, texture_offsets[x] + header_size))
