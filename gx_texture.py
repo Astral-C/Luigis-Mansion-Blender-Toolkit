@@ -1,6 +1,7 @@
 import bpy
 import struct
-import squish
+from io import BytesIO
+from wwlib_texture_utils import *
 
 class gx_texture():
 
@@ -78,21 +79,19 @@ class gx_texture():
         img = bpy.data.images.new("IMG{}".format(tex_index), width=w, height=h, alpha=True, float_buffer=False)
         pixels = [None] * w * h
 
+        out = open('before.bin', 'wb')
+
         for ty in range(0, h, 8):
             for tx in range(0, w, 8):
+                
+                block_pixels = decode_cmpr_block(ImageFormat.CMPR, stream, 0, BLOCK_DATA_SIZES[ImageFormat.CMPR], [], out)
+                
                 for by in range(0, 8, 4):
                     for bx in range(0, 8, 4):
-                        block = stream.fhandle.read(8)
-                        rgba = struct.unpack('>IIIIIIIIIIIIIIII', squish.decompress(block, squish.DXT1))
-
                         for y in range(4):
                             for x in range(4):
                                 if((ty + by + y) < h and (tx + bx + (3-x)) < w):
-                                    r = ((rgba[(y * 4 + x)] >> 24) & 0xFF) / 255
-                                    g = ((rgba[(y * 4 + x)] >> 16) & 0xFF) / 255
-                                    b = ((rgba[(y * 4 + x)] >> 8) & 0xFF) / 255
-                                    a = (rgba[(y * 4 + x)] & 0xFF) / 255
-                                    pixels[(ty + by + y) * w + (tx + bx + (3-x))] = [r, g, b, a]
+                                    pixels[(ty + by + y) * w + (tx + bx + (3-x))] = block_pixels[(by + y) * BLOCK_WIDTHS[ImageFormat.CMPR] + (bx + (3-x))]
         
-        img.pixels = [chan for px in pixels for chan in px]
+        img.pixels = [chan / 255 for px in pixels for chan in px]
         return img
