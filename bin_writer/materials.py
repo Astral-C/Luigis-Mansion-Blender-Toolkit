@@ -1,7 +1,7 @@
 import bpy
 import struct
-import squish
 from bStream import *
+from wwlib_texture_utils import *
 import time
 
 def compress_block(image, imageData, tile_x, tile_y, block_x, block_y):
@@ -27,39 +27,17 @@ def compress_block(image, imageData, tile_x, tile_y, block_x, block_y):
     return squish.compressMasked(bytes(rgba), mask, squish.DXT1)
 
 def cmpr_from_blender(image):
-    start = time.time()
-    img_data = [[image.pixels[(y * image.size[0] + x)*4 : ((y * image.size[0] + x) * 4) + 4] for x in range(image.size[0])] for y in range(image.size[1])]
+    img_data = [[image.pixels[(y * image.size[0] + x)*4 : ((y * image.size[0] + x) * 4) + 4] for x in range(image.size[0])] for y in reversed(range(image.size[1]))]
     img_out = bStream()
 
     #calculate block count to ensure that we dont get any garbage data
+    #img_out.write(encode_image_to_cmpr_block(img_data, None, tx, ty, BLOCK_WIDTHS[ImageFormat.CMPR], BLOCK_HEIGHTS[ImageFormat.CMPR], image.size[0], image.size[1]))
 
     for ty in range(0, image.size[1], 8):
         for tx in range(0, image.size[0], 8):
-            for by in range(0, 8, 4):
-                for bx in range(0, 8, 4):
-                    rgba = [0 for x in range(64)]
-                    mask = 0
-
-                    for y in range(4):
-                        if(ty + by + y < len(img_data)):    
-                            for x in range(4):
-                                if(tx + bx + x < len(img_data[0])):
-                                    index = (y * 4) + x
-                                    mask |= (1 << index)
-                                    localIndex = 4 * index
-                                    pixel = img_data[(image.size[1] - 1) - (ty + by + y)][(tx + bx + x)]
-
-                                    if(type(pixel) != int):
-                                        rgba[localIndex + 0] = int(pixel[0] * 255)
-                                        rgba[localIndex + 1] = int(pixel[1] * 255)
-                                        rgba[localIndex + 2] = int(pixel[2] * 255)
-                                        rgba[localIndex + 3] = int(pixel[3] * 255 if len(pixel) == 4 else 0xFF) #just in case alpha is not enabled
-                    
-                    img_out.write(squish.compressMasked(bytes(rgba), mask, squish.DXT1))
+            img_out.fhandle.write(encode_image_to_cmpr_block(img_data, [], tx, ty, BLOCK_WIDTHS[ImageFormat.CMPR], BLOCK_HEIGHTS[ImageFormat.CMPR], image.size[0], image.size[1]))
     
     img_out.seek(0)
-    end = time.time()
-    print(f"{image.name} compressed in {end-start} seconds")
     return (0x0E, image.size[0], image.size[1], img_out.fhandle.read())
 
 def rgb565_from_blender(image):
