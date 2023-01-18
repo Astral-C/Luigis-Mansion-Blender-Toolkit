@@ -68,7 +68,7 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = loop.normal
+            normal = mesh.vertices[loop.vertex_index].normal
             vi = -1
             uvi = -1
             noi = -1
