@@ -63,7 +63,7 @@ class GXVertex():
         return self.vertex > o.vertex
 
     def __hash__(self):
-        return hash(self.vertex)
+        return hash(self.vertex ^ self.normal ^ self.uv)
         
     def __add__(self, o):
         return self.vertex + o.vertex

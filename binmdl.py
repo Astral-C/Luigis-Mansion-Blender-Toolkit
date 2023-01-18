@@ -58,6 +58,7 @@ class GraphNodeSettingsPanel(bpy.types.Panel):
             row.prop(bpy.context.active_object, "batch_use_normals", toggle=True)
             #row.prop(bpy.context.active_object, "batch_use_positions")
             row.prop(bpy.context.active_object, "batch_use_nbt", toggle=True)
+
             row = box.row()
             row.prop(bpy.context.active_object, "batch_primitive_type")
 
@@ -100,7 +101,6 @@ class BinMaterialsSettingsPanel(bpy.types.Panel):
         row.prop(bpy.context.material, "bin_shader_metadata")
 
 wrap_modes = ['CLAMP', 'REPEAT', 'MIRROR']
-
 bin_mat_wrap_modes = [
     ("CLAMP", "Clamp", "", 0),
     ("REPEAT", "Repeat", "", 1),
@@ -129,7 +129,7 @@ bpy.utils.register_class(GraphNodeSettingsPanel) #must be registered here
 bpy.types.Object.batch_use_normals = bpy.props.BoolProperty(name="Use Normals", default=True)
 bpy.types.Object.batch_use_nbt= bpy.props.BoolProperty(name="Use NBT", default=False)
 bpy.types.Object.batch_use_positions = bpy.props.IntProperty(name="Use Positions",min=0,max=255,default=2)
-bpy.types.Object.batch_primitive_type = bpy.props.EnumProperty(name="Primitive Type",items=primitive_types,default="TRIANGLES")
+bpy.types.Object.batch_primitive_type = bpy.props.EnumProperty(name="Primitive Type",items=primitive_types,default="TRIANGLESTRIP")
 bpy.types.Object.bin_render_cast_shadow = bpy.props.BoolProperty(name="Cast Shadow", default=True)
 bpy.types.Object.bin_render_fourthwall = bpy.props.BoolProperty(name="Fourth Wall", default=False)
 bpy.types.Object.bin_render_transparent = bpy.props.BoolProperty(name="Transparent", default=False)
@@ -500,9 +500,9 @@ class bin_model_export():
     
         offsets[3] = out.tell()
         for normal in self.batches.mesh_data['normal']:
-            out.writeFloat(normal[0])
-            out.writeFloat(normal[2])
-            out.writeFloat(-normal[1])
+            out.writeFloat(-normal[0])
+            out.writeFloat(-normal[2])
+            out.writeFloat(normal[1])
 
         if(compat): #pad after normals
             out.padTo32(out.tell())

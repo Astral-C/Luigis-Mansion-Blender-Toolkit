@@ -22,7 +22,7 @@ def GeneratePrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             buv = uv_map_bump[polygon.loop_indices[idx]].uv
 
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = -polygon.normal #mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
+            normal = mesh.vertices[loop.vertex_index].normal #mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
             binormal = loop.bitangent
             tangent = loop.tangent
 
@@ -94,6 +94,8 @@ def GenerateQuadPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
     normal_offset = 0
     uv_map = mesh.uv_layers.active.data
 
+    #mesh.calc_normals_split()
+
     buffer.writeUInt8(0x80)
     buffer.writeUInt16(len(mesh.polygons)*4)
     for polygon in mesh.polygons:
@@ -102,8 +104,8 @@ def GenerateQuadPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = polygon.normal #mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
-
+            normal = mesh.vertices[loop.vertex_index].normal
+            print('vertex normal at is :', normal)
             vi = -1
             uvi = -1
             noi = -1
@@ -122,7 +124,6 @@ def GenerateQuadPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             if (nenabled):
                 if(normal in mesh_data['normal']):
                     noi = mesh_data['normal'].index(normal)
-
                 else:
                     noi = len(mesh_data['normal'])
                     mesh_data['normal'].append(normal)
@@ -272,7 +273,6 @@ def GenerateLinesPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             if (nenabled):
                 if(normal in mesh_data['normal']):
                     noi = mesh_data['normal'].index(normal)
-
                 else:
                     noi = len(mesh_data['normal'])
                     mesh_data['normal'].append(normal)
@@ -286,7 +286,6 @@ def GenerateLinesPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             if(nenabled):
                 buffer.writeUInt16(noi) # normal
             buffer.writeUInt16(uvi)
-
 
     ret = buffer.tell()
     buffer.seek(vtx_count_loc)
@@ -311,8 +310,7 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = polygon.normal
-
+            normal = mesh.vertices[loop.vertex_index].normal
             vi = -1
             uvi = -1
             noi = -1
@@ -329,10 +327,8 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
                 vi = len(mesh_data['vertex'])
                 mesh_data['vertex'].append(vertex)
 
-
             if(normal in mesh_data['normal']):
-                noi = mesh_data['normal'].index(normal)
-
+                    noi = mesh_data['normal'].index(normal)
             else:
                 noi = len(mesh_data['normal'])
                 mesh_data['normal'].append(normal)
