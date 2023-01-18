@@ -4,28 +4,7 @@ from bStream import *
 from wwlib_texture_utils import *
 import time
 
-def compress_block(image, imageData, tile_x, tile_y, block_x, block_y):
-    rgba = [0 for x in range(64)]
-    mask = 0
-
-    for y in range(4):
-        if(tile_y + block_y + y < len(imageData)):    
-            for x in range(4):
-                if(tile_x + block_x + x < len(imageData[0])):
-                    #print(f"Writing pixel in tile [{tile_x}, {tile_y}] block [{bx}, {by}] at data at {x} {y}")
-                    index = (y * 4) + x
-                    mask |= (1 << index)
-                    localIndex = 4 * index
-                    pixel = imageData[(image.size[1] - 1) - (tile_y + block_y + y)][(tile_x + block_x + x)]
-
-                    if(type(pixel) != int):
-                        rgba[localIndex + 0] = int(pixel[0] * 255)
-                        rgba[localIndex + 1] = int(pixel[1] * 255)
-                        rgba[localIndex + 2] = int(pixel[2] * 255)
-                        rgba[localIndex + 3] = int(pixel[3] * 255 if len(pixel) == 4 else 0xFF) #just in case alpha is not enabled
     
-    return squish.compressMasked(bytes(rgba), mask, squish.DXT1)
-
 def cmpr_from_blender(image):
     img_data = [[image.pixels[(y * image.size[0] + x)*4 : ((y * image.size[0] + x) * 4) + 4] for x in range(image.size[0])] for y in reversed(range(image.size[1]))]
     img_out = bStream()
@@ -82,6 +61,13 @@ class Material():
         self.texture_index = texindex
         self.u = self.wrap_modes.index(material.bin_wrap_mode_u)
         self.v = self.wrap_modes.index(material.bin_wrap_mode_v)
+
+        if(self.u == 0):
+            self.u = 1
+
+        if(self.v == 0):
+            self.v = 1
+
         self.mat = material
 
     def write(self, stream):
@@ -232,7 +218,6 @@ class TextureManager():
         for texture in self.textures:
             texture_offsets.append(data_section.tell())
             data_section.write(texture[3])
-            data_section.padTo32(data_section.tell())
 
         for x in range(0, len(texture_offsets)):
             header_section.write(struct.pack(">HHBBHI", self.textures[x][1], self.textures[x][2], self.textures[x][0], 0, 0, texture_offsets[x] + header_size))

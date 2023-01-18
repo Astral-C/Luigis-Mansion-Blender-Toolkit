@@ -11,6 +11,8 @@ def GeneratePrimitives(mesh, buffer, nbt, nenabled, mesh_data):
     normal_offset = 0
     uv_map = mesh.uv_layers.active.data
 
+    #mesh.calc_normals_split()
+
     for polygon in mesh.polygons:
         buffer.writeUInt8(0x90)
         buffer.writeUInt16(3)
@@ -19,7 +21,7 @@ def GeneratePrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = -polygon.normal#mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
+            normal = mesh.vertices[loop.vertex_index].normal
             print('vertex normal at is :', normal)
             vi = -1
             uvi = -1
@@ -39,7 +41,6 @@ def GeneratePrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             if (nenabled):
                 if(normal in mesh_data['normal']):
                     noi = mesh_data['normal'].index(normal)
-
                 else:
                     noi = len(mesh_data['normal'])
                     mesh_data['normal'].append(normal)
@@ -67,7 +68,7 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = -polygon.normal
+            normal = loop.normal
             vi = -1
             uvi = -1
             noi = -1
@@ -84,10 +85,8 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
                 vi = len(mesh_data['vertex'])
                 mesh_data['vertex'].append(vertex)
 
-
             if(normal in mesh_data['normal']):
-                noi = mesh_data['normal'].index(normal)
-
+                    noi = mesh_data['normal'].index(normal)
             else:
                 noi = len(mesh_data['normal'])
                 mesh_data['normal'].append(normal)
@@ -123,7 +122,7 @@ class BatchManager():
         for mesh in meshes:
             m = mesh.to_mesh()
 
-            self.batches.append(Batch(m, use_bump, self.mesh_data, mesh.batch_use_normals, mesh.batch_use_positions, mesh.batch_primitive_type))
+            self.batches.append(Batch(m, use_bump, self.mesh_data, mesh.batch_use_normals, mesh.batch_use_positions, use_tristrips))
             self.batch_indices[m.name] = cur_batch
 
             cur_batch += 1
@@ -158,7 +157,7 @@ class BatchManager():
         primitive_buffer.close()
 
 class Batch():
-    def __init__(self, mesh, nbt, mesh_data, use_normals, use_positions, primitive_type):
+    def __init__(self, mesh, nbt, mesh_data, use_normals, use_positions, use_tristrips):
 
         self.face_count = len(mesh.polygons) #Isnt used by the game so, not important really
         self.attributes = (0 | 1 << 9 | (1 << 10 if use_normals else 0) | 1 << 13)
@@ -167,7 +166,7 @@ class Batch():
         self.use_normals = use_normals
         self.use_positions = use_positions
 
-        if(primitive_type == 1):
+        if(use_tristrips):
             GenerateTristripPrimitives(mesh, self.primitives, self.useNBT, use_normals, mesh_data)
         else:
             GeneratePrimitives(mesh, self.primitives, self.useNBT, use_normals, mesh_data)
