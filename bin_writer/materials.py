@@ -80,8 +80,9 @@ class Material():
     wrap_modes = ['CLAMP','REPEAT','MIRROR']
     def __init__(self, texindex, material):
         self.texture_index = texindex
-        self.u = self.wrap_modes.index(material.bin_wrap_mode_u)
-        self.v = self.wrap_modes.index(material.bin_wrap_mode_v)
+        #disable clamp for now since it seems broken
+        self.u = 1 if self.wrap_modes.index(material.bin_wrap_mode_u) != 2 else 2
+        self.v = 1 if self.wrap_modes.index(material.bin_wrap_mode_u) != 2 else 2
         self.mat = material
 
     def write(self, stream):
@@ -89,33 +90,22 @@ class Material():
         stream.writeInt16(-1)
         stream.writeUInt8(self.u)
         stream.writeUInt8(self.v)
-        flags = 0
-        flags |= (self.mat.bin_shader_sampler_bitflag_1 << 1)
-        flags |= (self.mat.bin_shader_sampler_bitflag_2 << 2)
-        flags |= (self.mat.bin_shader_sampler_bitflag_3 << 3)
-        flags |= (self.mat.bin_shader_sampler_bitflag_4 << 4)
-        flags |= (self.mat.bin_shader_sampler_bitflag_5 << 5)
-        flags |= (self.mat.bin_shader_sampler_bitflag_6 << 6)
-        flags |= (self.mat.bin_shader_sampler_bitflag_7 << 7)
-        flags |= (self.mat.bin_shader_sampler_bitflag_8 << 8)
-        flags |= (self.mat.bin_shader_sampler_bitflag_9 << 9)
-        flags |= (self.mat.bin_shader_sampler_bitflag_10 << 10)
-        flags |= (self.mat.bin_shader_sampler_bitflag_11 << 11)
-        flags |= (self.mat.bin_shader_sampler_bitflag_12 << 12)
-        flags |= (self.mat.bin_shader_sampler_bitflag_13 << 13)
-        flags |= (self.mat.bin_shader_sampler_bitflag_14 << 14)
-        flags |= (self.mat.bin_shader_sampler_bitflag_15 << 15)
-        flags |= (self.mat.bin_shader_sampler_bitflag_16 << 16)
-        stream.writeUInt16(0)
-        stream.pad(12)
+        for x in range(7):
+            stream.writeUInt16(0)#self.mat.bin_shader_metadata[x])
 
 class Shader():
     def __init__(self, material, material_indices, cur_index, out_indices):
         tex = None
+        bumptex = None
 
         if(material.use_nodes and len(material.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].links) > 0):
             print(f"Setting up Material {material.name}, uses nodes {material.use_nodes}, input type {material.node_tree.nodes[0].inputs[0].links[0].from_node.type}")
-            tex = material.node_tree.nodes.get("Principled BSDF").inputs[0].links[0].from_node.image
+            tex = material.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].links[0].from_node.image
+
+
+            if(material.node_tree.nodes.get("Displacement") is not None and len(material.node_tree.nodes.get("Displacement").inputs["Height"].links) > 0):
+                bumptex = material.node_tree.nodes.get("Displacement").inputs["Height"].links[0].from_node.image
+
         
         self.bump_index = -1
         self.diffuse_index = -1
@@ -126,8 +116,8 @@ class Shader():
         self.unk3 = material.bin_shader_unk3
 
         #TODO: bumpmaps?
-        #if(material.bump_texname):
-        #    self.bump_index = textures.material_indices[material.bump_texname]
+        if(bumptex is not None):
+            self.bump_index = material_indices[material.name + "_bump"]
         
         if(tex is not None):
             self.diffuse_index = material_indices[material.name]
@@ -180,17 +170,28 @@ class TextureManager():
         for material in materials_used:
             if(material.use_nodes):
                 tex = None
+                bumptex = None
                 if(len(material.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].links) > 0):
                     tex = material.node_tree.nodes.get("Principled BSDF").inputs[0].links[0].from_node.image
                     texname = tex.name.split('.')[0]
+                    bumptexname = None
+
+                    if(material.node_tree.nodes.get("Displacement") is not None and len(material.node_tree.nodes.get("Displacement").inputs["Height"].links) > 0):
+                        bumptex = material.node_tree.nodes.get("Displacement").inputs[0].links[0].from_node.image
 
                     if(texname in self.texture_indices):
                         self.material_indices[material.name] = matindex
                         self.materials.append(Material(self.texture_indices[texname] , material))
                         matindex += 1
+
+                        if(bumptex is not None and (bumptex.name.split('.')[0] in self.texture_indices)):
+                            self.material_indices[material.name + "_bump"] = matindex
+                            self.materials.append(Material(self.texture_indices[bumptex.name.split('.')[0]] , material))
+                            matindex += 1
+
                         continue
 
-                    if(material.gx_img_type == 'CMPR'):
+                    if(material.gx_img_type == 'CMPR' or material.gx_img_type == 'I4'):
                         self.textures.append(cmpr_from_blender(tex))
                     elif(material.gx_img_type == 'RGB565'):
                         self.textures.append(rgb565_from_blender(tex))
@@ -202,6 +203,14 @@ class TextureManager():
                     self.materials.append(Material(texindex, material))
                     texindex += 1
                     matindex += 1
+
+                    if(bumptex is not None):
+                        self.textures.append(cmpr_from_blender(bumptex))
+                        self.texture_indices[bumptexname] = texindex
+                        self.material_indices[material.name + "_bump"] = matindex
+                        self.materials.append(Material(texindex, material))
+                        texindex += 1
+                        matindex += 1
 
                 else:
                     self.material_indices[material.name] = matindex
@@ -235,7 +244,7 @@ class TextureManager():
             data_section.padTo32(data_section.tell())
 
         for x in range(0, len(texture_offsets)):
-            header_section.write(struct.pack(">HHBBHI", self.textures[x][1], self.textures[x][2], self.textures[x][0], 0, 0, texture_offsets[x] + header_size))
+            header_section.write(struct.pack(">HHBBHI", self.textures[x][1], self.textures[x][2], self.textures[x][0], 0x20, 0, texture_offsets[x] + header_size))
         
         header_section.padTo32(header_section.tell())
         header_section.seek(0)
