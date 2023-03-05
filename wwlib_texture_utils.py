@@ -670,7 +670,7 @@ def decode_i4_block(image_format, image_data, offset, block_data_size, colors):
   pixel_color_data = []
   
   for byte_index in range(block_data_size):
-    byte = read_u8(image_data, offset+byte_index)
+    byte = image_data.readUInt8()
     for nibble_index in range(2):
       i4 = (byte >> (1-nibble_index)*4) & 0xF
       color = convert_i4_to_color(i4)
@@ -1194,10 +1194,8 @@ def encode_image_to_cmpr_block(pixels, colors_to_color_indexes, block_x, block_y
       color = [int(c*255) for c in pixels[y][x]]
       
       if color in colors:
-        print("colors.index branch")
         color_index = colors.index(color)
       else:
-        print("get_nearest_color_fast")
         new_color = get_nearest_color_fast(color, colors)
         color_index = colors.index(new_color)
       color_indexes |= (color_index << ((15-i)*2))

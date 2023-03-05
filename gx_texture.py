@@ -74,17 +74,39 @@ class gx_texture():
         return img
 
     @staticmethod
+    def bi_from_i4(stream, w, h, offset, tex_index):
+        stream.seek(offset)
+        img = bpy.data.images.new("IMG{}".format(tex_index), width=w, height=h, alpha=False, float_buffer=False)
+
+        pixels = [None] * w * h
+
+        for ty in range(0, h, 8):
+            for tx in range(0, w, 8):
+                
+                block_pixels = decode_i4_block(ImageFormat.I4, stream, 0, BLOCK_DATA_SIZES[ImageFormat.I4], [])
+                
+                for by in range(0, 8, 4):
+                    for bx in range(0, 8, 4):
+                        for y in range(4):
+                            for x in range(4):
+                                if((ty + by + y) < h and (tx + bx + (3-x)) < w):
+                                    pxl = block_pixels[(by + y) * BLOCK_WIDTHS[ImageFormat.CMPR] + (bx + (3-x))]
+                                    pixels[(ty + by + y) * w + (tx + bx + (3-x))] = (pxl[0],pxl[1],pxl[2],255)
+        
+        img.pixels = [chan / 255 for px in pixels for chan in px]
+
+        return img
+
+    @staticmethod
     def bi_from_cmpr(stream, w, h, offset, tex_index):
         stream.seek(offset)
         img = bpy.data.images.new("IMG{}".format(tex_index), width=w, height=h, alpha=True, float_buffer=False)
         pixels = [None] * w * h
 
-        out = open('before.bin', 'wb')
-
         for ty in range(0, h, 8):
             for tx in range(0, w, 8):
                 
-                block_pixels = decode_cmpr_block(ImageFormat.CMPR, stream, 0, BLOCK_DATA_SIZES[ImageFormat.CMPR], [], out)
+                block_pixels = decode_cmpr_block(ImageFormat.CMPR, stream, 0, BLOCK_DATA_SIZES[ImageFormat.CMPR], [], None)
                 
                 for by in range(0, 8, 4):
                     for bx in range(0, 8, 4):

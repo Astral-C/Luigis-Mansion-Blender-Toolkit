@@ -23,6 +23,32 @@ def to_triangles(indices, type):
 
     return new_indices
 
+
+def to_triangles_gxverts(verts, type):
+    new_indices = []
+    if(type == 0x90):
+        return [verts]
+    if(type == 0x98):
+        for x in range(2, len(verts)):
+            even = x % 2 != 0
+            tri = [verts[x-2], verts[x] if even else verts[x-1], verts[x-1] if even else verts[x]]
+            if(tri[0] != tri[1] and tri[1] != tri[2] and tri[2] != tri[0]):
+                new_indices.append(tri)
+    #0xA0
+    if(type == 0xA0):
+        for x in range(1, len(verts)):
+            tri[verts[x], verts[x + 1], 0]
+            if(tri[0] != tri[1] and tri[1] != tri[2] and tri[2] != tri[0]):
+                new_indices.append(tri)
+
+    if(type == 0x80):
+        for x in range(0, (len(verts) // 4) // 2):
+            tri[verts[x], verts[x + 1], [x + 2]]
+            if(tri[0] != tri[1] and tri[1] != tri[2] and tri[2] != tri[0]):
+                new_indices.append(tri)
+
+    return new_indices
+
 def to_triangles_uv(indices, type):
     new_indices = []
     if(type == 0x90):

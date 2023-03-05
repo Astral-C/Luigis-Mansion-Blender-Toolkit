@@ -47,11 +47,12 @@ except ImportError:
     from pyffi.trianglemesh import Mesh
 
 class GXVertex():
-    def __init__(self, vertex, normal, uv):
+    def __init__(self, vertex, normal, uv, uv1=-1):
         self.vertex = vertex
         self.normal = normal
         self.uv = uv
-        
+        self.uv1 = uv1
+
     def __eq__(self, o):
         return self.vertex == o.vertex
 

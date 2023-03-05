@@ -56,19 +56,13 @@ class MansionBinExport(bpy.types.Operator, ExportHelper):
     compat_mode: BoolProperty(
         default=True,
         name="Console Compatible",
-        description="Export model as console compatible, disable for smaller models that only work in emulator."
-    )
-
-    use_tristrips: BoolProperty(
-        default=False,
-        name="Use Tristrips (EXPERIMENTAL)",
-        description="Use tristrip primitives. This is an experimental mode export mode."
+        description="Properly pad custom model. Disable this for smaller models that only work on emulator."
     )
 
     def execute(self, context):
         if(os.path.exists(self.filepath)):
             os.remove(self.filepath)
-        binmdl.bin_model_export(self.filepath, self.use_tristrips, self.compat_mode)
+        binmdl.bin_model_export(self.filepath, self.compat_mode)
         return {'FINISHED'}
     
     def invoke(self, context, event):
@@ -119,14 +113,14 @@ class MansionAnmExport(bpy.types.Operator, ExportHelper):
         maxlen=255,
     )
 
-    Loop = BoolProperty(
+    loop: BoolProperty(
         default=False
     )
 
     def execute(self, context):
         if(os.path.exists(self.filepath)):
             os.remove(self.filepath)
-        anm.write_anim(self.filepath, self.Loop)
+        anm.write_anim(self.filepath, self.loop)
         return {'FINISHED'}
     
     def invoke(self, context, event):
@@ -293,30 +287,6 @@ class MansionColImport(bpy.types.Operator, ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-class GrezzoCmbImport(bpy.types.Operator, ImportHelper):
-    bl_idname = "import_model.grezzocmb"
-    bl_label = "Import CMB"
-
-    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
-    @classmethod
-    def poll(cls, context):
-        return context is not None
-    
-    filename_ext = ".cmb"
-
-    filter_glob: StringProperty(
-        default="*.cmb",
-        options={'HIDDEN'},
-        maxlen=255,  
-    )
-
-    def execute(self, context):
-        cmb.import_model(self.filepath)
-        return {'FINISHED'}
-    
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
 
 class TOPBAR_MT_file_import_mansion(bpy.types.Menu):
     bl_idname = 'import_model.mansion'
@@ -329,7 +299,6 @@ class TOPBAR_MT_file_import_mansion(bpy.types.Menu):
         self.layout.operator(MansionColImport.bl_idname, text="Collision (.mp)")
         self.layout.operator(MansionCmnImport.bl_idname, text="CMN (.cmn)")
         self.layout.operator(MansionPthImport.bl_idname, text="PTH (.pth)")
-        #self.layout.operator(GrezzoCmbImport.bl_idname, text="Grezzo CMB (.cmb)")
 
 class TOPBAR_MT_file_export_mansion(bpy.types.Menu):
     bl_idname = 'export_model.mansion'
