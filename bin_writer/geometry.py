@@ -22,7 +22,7 @@ def GeneratePrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             buv = uv_map_bump[polygon.loop_indices[idx]].uv
 
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = mesh.vertices[loop.vertex_index].normal #mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
+            normal = polygon.normal
             binormal = loop.bitangent
             tangent = loop.tangent
 
@@ -104,7 +104,7 @@ def GenerateQuadPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = mesh.vertices[loop.vertex_index].normal
+            normal = polygon.normal
             print('vertex normal at is :', normal)
             vi = -1
             uvi = -1
@@ -146,7 +146,7 @@ def GenerateTrifanPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
     for loop in mesh.loops:
         uv = uv_map[polygon.loop_indices[idx]].uv
         vertex = mesh.vertices[loop.vertex_index].co
-        normal = polygon.normal#mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
+        normal = polygon.normal
 
         vi = -1
         uvi = -1
@@ -190,7 +190,7 @@ def GeneratePointsPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
     for loop in mesh.loops:
         uv = uv_map[loop.index].uv
         vertex = mesh.vertices[loop.vertex_index].co
-        normal = polygon.normal #mesh.vertices[mesh.loops[polygon.loop_indices[idx]].vertex_index].co.cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 1) % 3]].vertex_index].co).cross(mesh.vertices[mesh.loops[polygon.loop_indices[(idx + 2) % 3]].vertex_index].co) #mesh.vertices[loop.vertex_index].normal
+        normal = mesh.vertices[loop.vertex_index].normal
         
         vi = -1
         uvi = -1
@@ -245,7 +245,7 @@ def GenerateLinesPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
             uv = uv_map[loop.index].uv
             vertex = mesh.vertices[edge.vertices[0]].co
             vertex2 = mesh.vertices[edge.vertices[1]].co
-            normal = polygon.normal
+            normal = mesh.vertices[edge.vertices[0]].normal
  
             vi = -1
             vi2 = -1
@@ -310,7 +310,7 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
 
             uv = uv_map[polygon.loop_indices[idx]].uv
             vertex = mesh.vertices[loop.vertex_index].co
-            normal = mesh.vertices[loop.vertex_index].normal
+            normal = polygon.normal
             vi = -1
             uvi = -1
             noi = -1
@@ -337,9 +337,9 @@ def GenerateTristripPrimitives(mesh, buffer, nbt, nenabled, mesh_data):
         faces.append(tri)
 
 
-    print("Looking for strips...")
+    #print("Looking for strips...")
     strips = stripify(faces)
-    print(f"Strip Data {strips}")
+    #print(f"Strip Data {strips}")
     
 
     for strip in strips:
