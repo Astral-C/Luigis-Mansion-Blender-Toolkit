@@ -247,7 +247,6 @@ class bin_model_import():
             material = self.materials[part[0]]
             
             mesh = bpy.data.meshes.new('Batch_{0}'.format(part[1]))
-            mesh.calc_normals_split()
 
             #mesh.use_auto_smooth = True
             mesh.from_pydata(self.verts, [], [[vtx.vertex for vtx in tri] for tri in batch[0]])
